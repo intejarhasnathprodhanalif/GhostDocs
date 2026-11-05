@@ -1,0 +1,119 @@
+// ============================================================
+// GhostDocs — App-Level Build Script
+// 100% Java | minSdk 26 | targetSdk 35 | compileSdk 35
+// ============================================================
+plugins {
+    id 'com.android.application'
+    id 'com.google.gms.google-services'  // Processes google-services.json
+}
+
+android {
+    namespace    'com.ghostdocs.vault'
+    compileSdk    35
+
+    defaultConfig {
+        applicationId   "com.ghostdocs.vault"
+        minSdk           26   // Android 8.0 — required for BiometricPrompt API
+        targetSdk        35
+        versionCode      1
+        versionName      "1.0.0"
+
+        // Keep the WATCHER service alive via foreground; no WorkManager needed
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // Disable Kotlin multi-dex since we are Java-only
+        multiDexEnabled false
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix   "-debug"
+            debuggable           true
+            minifyEnabled        false
+        }
+        release {
+            debuggable           false
+            minifyEnabled        true
+            shrinkResources      true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                          'proguard-rules.pro'
+        }
+    }
+
+    // ── 100% Java — no Kotlin source sets required ──────────────────────────
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // ── Suppress duplicate file conflicts from Firebase / ML Kit ─────────────
+    packaging {
+        resources {
+            excludes += [
+                '/META-INF/{AL2.0,LGPL2.1}',
+                'META-INF/DEPENDENCIES',
+                'META-INF/LICENSE',
+                'META-INF/LICENSE.txt',
+                'META-INF/NOTICE',
+                'META-INF/NOTICE.txt',
+                'META-INF/proguard/**'
+            ]
+        }
+    }
+
+    // ── Lint: treat missing translations as warnings, not errors ─────────────
+    lint {
+        abortOnError false
+        checkReleaseBuilds true
+    }
+}
+
+dependencies {
+
+    // ════════════════════════════════════════════════════════════════════════
+    // AndroidX — Core UI & Utilities
+    // ════════════════════════════════════════════════════════════════════════
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'com.google.android.material:material:1.12.0'
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Biometric Authentication — BiometricPrompt tied to Android Keystore
+    // ════════════════════════════════════════════════════════════════════════
+    implementation 'androidx.biometric:biometric:1.1.0'
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Firebase — BOM manages all versions; no individual version pins needed
+    // ════════════════════════════════════════════════════════════════════════
+    implementation platform('com.google.firebase:firebase-bom:33.7.0')
+    implementation 'com.google.firebase:firebase-auth'          // Feature 1: Auth Gate
+    implementation 'com.google.firebase:firebase-firestore'     // Feature 1 & 3: Metadata store
+    implementation 'com.google.firebase:firebase-database'      // Feature 2: Watcher status sync
+
+    // ════════════════════════════════════════════════════════════════════════
+    // ML Kit — On-Device Text Recognition (OCR) — Feature 3
+    // Uses bundled model; no network required after install
+    // ════════════════════════════════════════════════════════════════════════
+    implementation 'com.google.mlkit:text-recognition:16.0.1'
+
+    // ════════════════════════════════════════════════════════════════════════
+    // OpenCV — Smart Crop & Perspective Transform — Feature 4
+    // ════════════════════════════════════════════════════════════════════════
+    implementation 'org.opencv:opencv:4.10.0'
+
+    // ════════════════════════════════════════════════════════════════════════
+    // ZXing — QR Code Bitmap Generation (pure Java core, no Android wrapper)
+    // Feature 7: Air-Gapped QR Share
+    // ════════════════════════════════════════════════════════════════════════
+    implementation 'com.google.zxing:core:3.5.3'
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Testing
+    // ════════════════════════════════════════════════════════════════════════
+    testImplementation         'junit:junit:4.13.2'
+    androidTestImplementation  'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation  'androidx.test.espresso:espresso-core:3.6.1'
+}
+

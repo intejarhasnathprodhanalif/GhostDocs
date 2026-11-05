@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ================================================================
+         Base Application Theme
+         Parent: MaterialComponents.DayNight.NoActionBar
+         GhostDocs uses a fully custom dark toolbar, so we suppress
+         the system ActionBar entirely.
+         ================================================================ -->
+    <style name="Theme.GhostDocs" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Brand colors -->
+        <item name="colorPrimary">@color/ghostPrimary</item>
+        <item name="colorPrimaryVariant">@color/ghostPrimaryVariant</item>
+        <item name="colorOnPrimary">@color/ghostOnPrimary</item>
+        <item name="colorSecondary">@color/ghostAccent</item>
+        <item name="colorSecondaryVariant">@color/ghostAccentVariant</item>
+        <item name="colorOnSecondary">@color/ghostOnPrimary</item>
+        <item name="colorSurface">@color/ghostSurface</item>
+        <item name="colorOnSurface">@color/ghostOnSurface</item>
+        <item name="colorError">@color/ghostError</item>
+
+        <!-- Window background -->
+        <item name="android:colorBackground">@color/ghostDarkBg</item>
+        <item name="android:windowBackground">@color/ghostDarkBg</item>
+
+        <!-- System bars -->
+        <item name="android:statusBarColor">@color/statusBar</item>
+        <item name="android:navigationBarColor">@color/navBar</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+
+        <!-- Typography: use system default; custom fonts added in Step 2 -->
+        <item name="android:fontFamily">sans-serif</item>
+
+        <!-- Ripple: use primary color for touch feedback -->
+        <item name="colorControlHighlight">#2000D4FF</item>
+    </style>
+
+    <!-- ================================================================
+         Splash / Launch Theme
+         Applied to LaunchActivity. Full-screen, no flicker.
+         ================================================================ -->
+    <style name="Theme.GhostDocs.Splash" parent="Theme.GhostDocs">
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowBackground">@color/ghostDarkBg</item>
+    </style>
+
+    <!-- ================================================================
+         Dialog Theme — used for BiometricPrompt styling
+         ================================================================ -->
+    <style name="Theme.GhostDocs.Dialog" parent="Theme.MaterialComponents.DayNight.Dialog">
+        <item name="colorPrimary">@color/ghostPrimary</item>
+        <item name="colorSurface">@color/ghostSurface</item>
+        <item name="colorOnSurface">@color/ghostOnSurface</item>
+        <item name="android:colorBackground">@color/ghostSurface</item>
+        <item name="android:windowBackground">@color/ghostSurface</item>
+    </style>
+
+    <!-- ================================================================
+         Text Appearance Styles
+         ================================================================ -->
+    <style name="TextAppearance.GhostDocs.Headline" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="android:textColor">@color/ghostOnSurface</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.GhostDocs.Body" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textColor">@color/ghostOnSurface</item>
+    </style>
+
+    <style name="TextAppearance.GhostDocs.Caption" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textColor">@color/ghostOnSurfaceMuted</item>
+    </style>
+
+    <!-- ================================================================
+         Button Styles
+         ================================================================ -->
+    <style name="Button.GhostDocs.Primary" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/ghostPrimary</item>
+        <item name="android:textColor">@color/ghostOnPrimary</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="android:letterSpacing">0.05</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Button.GhostDocs.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="strokeColor">@color/ghostPrimary</item>
+        <item name="android:textColor">@color/ghostPrimary</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <!-- ================================================================
+         Card Style
+         ================================================================ -->
+    <style name="Card.GhostDocs" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/ghostSurface</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">4dp</item>
+        <item name="strokeColor">@color/ghostDivider</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+</resources>
+

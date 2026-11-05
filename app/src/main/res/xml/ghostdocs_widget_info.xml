@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  GhostDocs App Widget Provider Configuration
+  Defines the home screen widget dimensions, update frequency,
+  initial layout, and resize behaviour.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_label"
+    android:initialKeyguardLayout="@layout/widget_vault"
+    android:initialLayout="@layout/widget_vault"
+    android:minWidth="180dp"
+    android:minHeight="80dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="2"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable" />
+

@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ============================================================
+  GhostDocs — AndroidManifest.xml
+  Complete declaration of all components, permissions, and
+  hardware features required by the application.
+  ============================================================
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ================================================================
+         PERMISSIONS
+         All permissions declared upfront; runtime requests are handled
+         in Java via PermissionHelper.java (Step 2).
+         ================================================================ -->
+
+    <!-- ── Storage / Media (Android 10–14+ Scoped Storage) ─────────────── -->
+    <!-- Android 13+ granular media permission -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Android 12 and below fallback -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!-- Required to delete original files via ContentResolver (Scoped Storage) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <!-- Broad access for managing vault storage on Android 11+ -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
+    <!-- ── Foreground Service — The Invisible Watcher ───────────────────── -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- ── Boot — Restart watcher after device reboot ───────────────────── -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- ── Notifications — Alert user on document detection ─────────────── -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- ── Network — Firebase sync & ML Kit model updates ───────────────── -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- ── Biometric Hardware ────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+
+    <!-- ── Wake Lock — Keep watcher alive in background ─────────────────── -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- ── Hardware Feature Declarations ─────────────────────────────────── -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.fingerprint"
+        android:required="false" />
+
+    <!-- ================================================================
+         APPLICATION
+         ================================================================ -->
+    <application
+        android:name=".GhostDocsApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.GhostDocs"
+        tools:targetApi="31">
+
+        <!-- ── ACTIVITIES ──────────────────────────────────────────────── -->
+
+        <!--
+            LaunchActivity: Entry point. Checks Firebase Auth state.
+            If authenticated → triggers BiometricPrompt.
+            If not → routes to LoginActivity.
+        -->
+        <activity
+            android:name=".activities.LaunchActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.GhostDocs.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            LoginActivity: Firebase Email + Google sign-in.
+            Not exported; launched by LaunchActivity.
+        -->
+        <activity
+            android:name=".activities.LoginActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!--
+            VaultActivity: Main secure vault dashboard.
+            Hosts the RecyclerView of encrypted documents.
+            Launched only after successful biometric authentication.
+        -->
+        <activity
+            android:name=".activities.VaultActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop" />
+
+        <!--
+            SettingsActivity: App configuration.
+            Hosts a ListView for settings options and logs.
+        -->
+        <activity
+            android:name=".activities.SettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <!-- ── SERVICES ────────────────────────────────────────────────── -->
+
+        <!--
+            WatcherService: The core "Invisible Watcher".
+            Runs as a Foreground Service to stay alive in background.
+            Registers MediaContentObserver on MediaStore.
+            Foreground service type = dataSync for Android 14+ compliance.
+        -->
+        <service
+            android:name=".service.WatcherService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:stopWithTask="false" />
+
+        <!-- ── BROADCAST RECEIVERS ─────────────────────────────────────── -->
+
+        <!--
+            BootReceiver: Restarts the WatcherService on device reboot.
+            Listens to BOOT_COMPLETED and QUICKBOOT_POWERON.
+        -->
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <!-- HTC devices -->
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ── APP WIDGET ──────────────────────────────────────────────── -->
+
+        <!--
+            VaultWidgetProvider: Home screen widget.
+            Displays real-time vault document count and quick-launch button.
+        -->
+        <receiver
+            android:name=".widget.VaultWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/ghostdocs_widget_info" />
+        </receiver>
+
+        <!-- ── CONTENT PROVIDER — FileProvider for secure file sharing ─── -->
+        <!--
+            Provides secure URI access to encrypted files for export/share
+            without exposing raw file paths.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_provider_paths" />
+        </provider>
+
+    </application>
+
+</manifest>
+

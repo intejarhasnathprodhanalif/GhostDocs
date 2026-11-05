@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider paths for GhostDocs.
+  Grants secure, scoped URI access to encrypted output files
+  without exposing raw filesystem paths to other apps.
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Internal app-private storage (encrypted vault files) -->
+    <files-path
+        name="vault_internal"
+        path="vault/" />
+
+    <!-- App cache (temporary processing scratch space) -->
+    <cache-path
+        name="vault_cache"
+        path="." />
+
+    <!-- External app-specific storage (exported PDFs) -->
+    <external-files-path
+        name="vault_external"
+        path="GhostDocs/exports/" />
+</paths>
+

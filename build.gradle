@@ -1,0 +1,9 @@
+// ============================================================
+// GhostDocs — Project-Level Build Script
+// All sub-project/module configuration is in app/build.gradle
+// ============================================================
+plugins {
+    id 'com.android.application'      version '8.5.0' apply false
+    id 'com.google.gms.google-services' version '4.4.2' apply false
+}
+
