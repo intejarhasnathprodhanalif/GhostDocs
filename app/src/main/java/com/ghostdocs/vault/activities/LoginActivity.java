@@ -38,32 +38,38 @@ import com.google.firebase.auth.GoogleAuthProvider;
 /**
  * LoginActivity — Firebase Authentication Screen
  *
- * <p>Handles two sign-in flows and account creation:
+ * <p>
+ * Handles two sign-in flows and account creation:
  * <ol>
- *   <li><b>Email/Password</b> via {@link FirebaseAuth}</li>
- *   <li><b>Google Sign-In</b> via {@link GoogleSignInClient} + Firebase credential</li>
- *   <li><b>Register</b> (create new account) with the same email/password fields</li>
+ * <li><b>Email/Password</b> via {@link FirebaseAuth}</li>
+ * <li><b>Google Sign-In</b> via {@link GoogleSignInClient} + Firebase
+ * credential</li>
+ * <li><b>Register</b> (create new account) with the same email/password
+ * fields</li>
  * </ol>
  *
- * <p>The screen toggles between Sign-In and Register mode via a single button,
+ * <p>
+ * The screen toggles between Sign-In and Register mode via a single button,
  * keeping the UI minimal. All async Firebase calls run on Firebase's default
  * thread pool; callbacks are delivered to the main thread automatically.
  *
- * <p><b>OOP Design:</b>
+ * <p>
+ * <b>OOP Design:</b>
  * <ul>
- *   <li><b>Inheritance:</b> Extends {@link AppCompatActivity}.</li>
- *   <li><b>Encapsulation:</b> Firebase Auth state, Google client, and UI state
- *       are all private fields — external classes cannot manipulate them.</li>
- *   <li><b>Separation of concerns:</b> Input validation, Firebase calls, and
- *       UI feedback are separated into distinct private methods.</li>
+ * <li><b>Inheritance:</b> Extends {@link AppCompatActivity}.</li>
+ * <li><b>Encapsulation:</b> Firebase Auth state, Google client, and UI state
+ * are all private fields — external classes cannot manipulate them.</li>
+ * <li><b>Separation of concerns:</b> Input validation, Firebase calls, and
+ * UI feedback are separated into distinct private methods.</li>
  * </ul>
  *
- * <p><b>Prerequisites:</b>
+ * <p>
+ * <b>Prerequisites:</b>
  * <ul>
- *   <li>{@code google-services.json} must be in {@code app/} with Authentication
- *       enabled (Email/Password + Google providers) in the Firebase console.</li>
- *   <li>Your app's SHA-1 fingerprint must be registered in the Firebase console
- *       for Google Sign-In to work.</li>
+ * <li>{@code google-services.json} must be in {@code app/} with Authentication
+ * enabled (Email/Password + Google providers) in the Firebase console.</li>
+ * <li>Your app's SHA-1 fingerprint must be registered in the Firebase console
+ * for Google Sign-In to work.</li>
  * </ul>
  */
 public class LoginActivity extends AppCompatActivity {
@@ -75,22 +81,20 @@ public class LoginActivity extends AppCompatActivity {
     private boolean isSignInMode = true;
 
     // ── Views ────────────────────────────────────────────────────────────────
-    private TextInputLayout     tilEmail, tilPassword;
-    private TextInputEditText   etEmail, etPassword;
-    private MaterialButton      btnPrimaryAction, btnGoogleSignIn;
-    private TextView            tvError, tvSectionLabel, tvToggleLabel, tvToggleAction;
-    private ProgressBar         progressBar;
+    private TextInputLayout tilEmail, tilPassword;
+    private TextInputEditText etEmail, etPassword;
+    private MaterialButton btnPrimaryAction, btnGoogleSignIn;
+    private TextView tvError, tvSectionLabel, tvToggleLabel, tvToggleAction;
+    private ProgressBar progressBar;
 
     // ── Firebase & Google ────────────────────────────────────────────────────
-    private FirebaseAuth        firebaseAuth;
-    private GoogleSignInClient  googleSignInClient;
+    private FirebaseAuth firebaseAuth;
+    private GoogleSignInClient googleSignInClient;
 
     // ── Google Sign-In Launcher (non-deprecated ActivityResult API) ───────────
-    private final ActivityResultLauncher<Intent> googleSignInLauncher =
-            registerForActivityResult(
-                    new ActivityResultContracts.StartActivityForResult(),
-                    this::handleGoogleSignInResult
-            );
+    private final ActivityResultLauncher<Intent> googleSignInLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            this::handleGoogleSignInResult);
 
     // ════════════════════════════════════════════════════════════════════════
     // Lifecycle
@@ -113,17 +117,17 @@ public class LoginActivity extends AppCompatActivity {
 
     /** Binds all XML view references to fields. */
     private void bindViews() {
-        tilEmail        = findViewById(R.id.til_email);
-        tilPassword     = findViewById(R.id.til_password);
-        etEmail         = findViewById(R.id.et_email);
-        etPassword      = findViewById(R.id.et_password);
+        tilEmail = findViewById(R.id.til_email);
+        tilPassword = findViewById(R.id.til_password);
+        etEmail = findViewById(R.id.et_email);
+        etPassword = findViewById(R.id.et_password);
         btnPrimaryAction = findViewById(R.id.btn_primary_action);
         btnGoogleSignIn = findViewById(R.id.btn_google_sign_in);
-        tvError         = findViewById(R.id.tv_error);
-        tvSectionLabel  = findViewById(R.id.tv_section_label);
-        tvToggleLabel   = findViewById(R.id.tv_toggle_label);
-        tvToggleAction  = findViewById(R.id.tv_toggle_action);
-        progressBar     = findViewById(R.id.progress_bar);
+        tvError = findViewById(R.id.tv_error);
+        tvSectionLabel = findViewById(R.id.tv_section_label);
+        tvToggleLabel = findViewById(R.id.tv_toggle_label);
+        tvToggleAction = findViewById(R.id.tv_toggle_action);
+        progressBar = findViewById(R.id.progress_bar);
     }
 
     /** Initialises the Firebase Auth singleton. */
@@ -134,7 +138,9 @@ public class LoginActivity extends AppCompatActivity {
     /**
      * Configures the {@link GoogleSignInClient}.
      *
-     * <p>{@code default_web_client_id} is auto-generated from {@code google-services.json}
+     * <p>
+     * {@code default_web_client_id} is auto-generated from
+     * {@code google-services.json}
      * by the Google Services Gradle plugin — it is NOT a manual string resource.
      * It maps to the OAuth 2.0 Web Client ID in your Firebase project.
      */
@@ -201,9 +207,10 @@ public class LoginActivity extends AppCompatActivity {
      * returns immediately and results arrive via the success/failure listeners.
      */
     private void attemptEmailSignIn() {
-        if (!validateInputs()) return;
+        if (!validateInputs())
+            return;
 
-        String email    = getEmailInput();
+        String email = getEmailInput();
         String password = getPasswordInput();
 
         showLoading(true);
@@ -226,12 +233,14 @@ public class LoginActivity extends AppCompatActivity {
     // ════════════════════════════════════════════════════════════════════════
 
     /**
-     * Validates inputs and calls {@link FirebaseAuth#createUserWithEmailAndPassword}.
+     * Validates inputs and calls
+     * {@link FirebaseAuth#createUserWithEmailAndPassword}.
      */
     private void attemptRegister() {
-        if (!validateInputs()) return;
+        if (!validateInputs())
+            return;
 
-        String email    = getEmailInput();
+        String email = getEmailInput();
         String password = getPasswordInput();
 
         showLoading(true);
@@ -258,12 +267,11 @@ public class LoginActivity extends AppCompatActivity {
      * @param user the newly created Firebase user
      */
     private void sendVerificationEmail(FirebaseUser user) {
-        if (user == null) return;
+        if (user == null)
+            return;
         user.sendEmailVerification()
-                .addOnSuccessListener(unused ->
-                        Log.d(TAG, "Verification email sent."))
-                .addOnFailureListener(e ->
-                        Log.w(TAG, "Failed to send verification email.", e));
+                .addOnSuccessListener(unused -> Log.d(TAG, "Verification email sent."))
+                .addOnFailureListener(e -> Log.w(TAG, "Failed to send verification email.", e));
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -294,8 +302,7 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
-        Task<GoogleSignInAccount> task =
-                GoogleSignIn.getSignedInAccountFromIntent(result.getData());
+        Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
         try {
             GoogleSignInAccount account = task.getResult(ApiException.class);
             Log.d(TAG, "Google sign-in account retrieved: " + account.getEmail());
@@ -311,7 +318,8 @@ public class LoginActivity extends AppCompatActivity {
      * Exchanges the Google ID token for a Firebase {@link AuthCredential} and
      * signs the user in to Firebase Authentication.
      *
-     * @param idToken the Google ID token from {@link GoogleSignInAccount#getIdToken()}
+     * @param idToken the Google ID token from
+     *                {@link GoogleSignInAccount#getIdToken()}
      */
     private void firebaseAuthWithGoogle(String idToken) {
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
@@ -362,7 +370,7 @@ public class LoginActivity extends AppCompatActivity {
         clearInputErrors();
         boolean valid = true;
 
-        String email    = getEmailInput();
+        String email = getEmailInput();
         String password = getPasswordInput();
 
         if (TextUtils.isEmpty(email)) {
