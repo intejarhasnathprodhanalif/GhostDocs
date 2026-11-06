@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
@@ -19,6 +20,7 @@ import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.classifier.RegexClassifierEngine;
 import com.ghostdocs.vault.model.DocumentModel;
 import com.ghostdocs.vault.observer.MediaContentObserver;
+import com.ghostdocs.vault.tasks.CropTask;
 import com.ghostdocs.vault.tasks.OcrTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
 import com.ghostdocs.vault.util.NotificationHelper;
@@ -183,8 +185,14 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
         try {
             Log.d(TAG, "Background processing started for: " + displayName);
 
-            // Step 1: Execute on-device ML Kit OCR Task
-            OcrTask ocrTask = new OcrTask(this, imageUri, displayName, null);
+            // Step 1: Smart Crop & Flatten via OpenCV
+            updateForegroundNotification("Optimizing document perspective...");
+            CropTask cropTask = new CropTask(this, imageUri, null);
+            Bitmap processedBitmap = cropTask.doInBackground();
+
+            // Step 2: Execute on-device ML Kit OCR Task on de-skewed bitmap
+            updateForegroundNotification("Reading document text...");
+            OcrTask ocrTask = new OcrTask(this, processedBitmap, displayName, null);
             OcrTask.OcrResult ocrResult = ocrTask.doInBackground();
 
             RegexClassifierEngine.ClassificationResult classification = ocrResult.getClassification();

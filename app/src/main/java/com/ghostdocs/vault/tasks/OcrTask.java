@@ -66,6 +66,7 @@ public class OcrTask extends BaseVaultTask<OcrTask.OcrResult> {
     }
 
     private final Uri imageUri;
+    private final Bitmap sourceBitmap;
     private final String fallbackTitle;
     private final RegexClassifierEngine classifierEngine;
 
@@ -75,6 +76,18 @@ public class OcrTask extends BaseVaultTask<OcrTask.OcrResult> {
                    @Nullable TaskCallback<OcrResult> callback) {
         super(context, callback);
         this.imageUri = imageUri;
+        this.sourceBitmap = null;
+        this.fallbackTitle = fallbackTitle;
+        this.classifierEngine = new RegexClassifierEngine();
+    }
+
+    public OcrTask(@NonNull Context context,
+                   @NonNull Bitmap bitmap,
+                   @NonNull String fallbackTitle,
+                   @Nullable TaskCallback<OcrResult> callback) {
+        super(context, callback);
+        this.imageUri = null;
+        this.sourceBitmap = bitmap;
         this.fallbackTitle = fallbackTitle;
         this.classifierEngine = new RegexClassifierEngine();
     }
@@ -83,8 +96,15 @@ public class OcrTask extends BaseVaultTask<OcrTask.OcrResult> {
     protected OcrResult doInBackground() throws Exception {
         Log.d(TAG, "Starting on-device ML Kit OCR for URI: " + imageUri);
 
-        // 1. Build ML Kit InputImage from file path
-        InputImage inputImage = InputImage.fromFilePath(context, imageUri);
+        // 1. Build ML Kit InputImage from Bitmap or file path
+        InputImage inputImage;
+        if (sourceBitmap != null) {
+            inputImage = InputImage.fromBitmap(sourceBitmap, 0);
+        } else if (imageUri != null) {
+            inputImage = InputImage.fromFilePath(context, imageUri);
+        } else {
+            throw new IllegalArgumentException("Neither sourceBitmap nor imageUri provided for OcrTask.");
+        }
         int width = inputImage.getWidth();
         int height = inputImage.getHeight();
 
