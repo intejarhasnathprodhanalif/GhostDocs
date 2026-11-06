@@ -5,10 +5,14 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Build;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -42,6 +46,7 @@ import com.google.firebase.firestore.Query;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -78,10 +83,13 @@ public class VaultActivity extends AppCompatActivity
     private TextView                  tvDocCount;
     private TextView                  tvWatcherStatus;
     private FloatingActionButton      fabWatcherToggle;
+    private EditText                  etSearchVault;
 
     // ── Adapter & data ───────────────────────────────────────────────────────
     private VaultRecyclerAdapter      vaultAdapter;
-    private final List<DocumentModel> documentList = new ArrayList<>();
+    private final List<DocumentModel> masterDocumentList   = new ArrayList<>();
+    private final List<DocumentModel> filteredDocumentList = new ArrayList<>();
+    private String                    currentSearchQuery   = "";
 
     // ── Firebase ─────────────────────────────────────────────────────────────
     private FirebaseAuth              firebaseAuth;
@@ -112,6 +120,7 @@ public class VaultActivity extends AppCompatActivity
 
         bindViews();
         setupRecyclerView();
+        setupSearchFilter();
         setClickListeners();
 
         // Request runtime permissions on first launch
@@ -123,7 +132,7 @@ public class VaultActivity extends AppCompatActivity
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         isWatcherRunning = prefs.getBoolean(PREF_WATCHER_ON, false);
         updateWatcherUI();
-        VaultWidgetProvider.updateAllWidgets(this, documentList.size(), isWatcherRunning);
+        VaultWidgetProvider.updateAllWidgets(this, masterDocumentList.size(), isWatcherRunning);
     }
 
     @Override
@@ -166,6 +175,7 @@ public class VaultActivity extends AppCompatActivity
         tvDocCount        = findViewById(R.id.tv_doc_count);
         tvWatcherStatus   = findViewById(R.id.tv_watcher_status);
         fabWatcherToggle  = findViewById(R.id.fab_watcher_toggle);
+        etSearchVault     = findViewById(R.id.et_search_vault);
     }
 
     /**
@@ -174,7 +184,7 @@ public class VaultActivity extends AppCompatActivity
      * The adapter is seeded with live data once the Firestore listener fires.
      */
     private void setupRecyclerView() {
-        vaultAdapter = new VaultRecyclerAdapter(this, documentList);
+        vaultAdapter = new VaultRecyclerAdapter(this, filteredDocumentList);
         vaultAdapter.setOnDocumentClickListener(this);
 
         GridLayoutManager layoutManager =
@@ -183,6 +193,65 @@ public class VaultActivity extends AppCompatActivity
         rvVault.setLayoutManager(layoutManager);
         rvVault.setAdapter(vaultAdapter);
         rvVault.setHasFixedSize(false);
+    }
+
+    private void setupSearchFilter() {
+        if (etSearchVault != null) {
+            etSearchVault.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    filterDocuments(s != null ? s.toString() : "");
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
+        }
+    }
+
+    /**
+     * Filters documents in real-time across titles, document types, extracted tags, and full OCR text.
+     */
+    private void filterDocuments(String query) {
+        currentSearchQuery = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
+        filteredDocumentList.clear();
+
+        if (currentSearchQuery.isEmpty()) {
+            filteredDocumentList.addAll(masterDocumentList);
+        } else {
+            for (DocumentModel doc : masterDocumentList) {
+                boolean matchesTitle = doc.getTitle() != null
+                        && doc.getTitle().toLowerCase(Locale.ROOT).contains(currentSearchQuery);
+                boolean matchesType = doc.getDocType() != null
+                        && doc.getDocType().toLowerCase(Locale.ROOT).contains(currentSearchQuery);
+                boolean matchesTags = false;
+                if (doc.getTags() != null) {
+                    for (String tag : doc.getTags()) {
+                        if (tag != null && tag.toLowerCase(Locale.ROOT).contains(currentSearchQuery)) {
+                            matchesTags = true;
+                            break;
+                        }
+                    }
+                }
+                boolean matchesOcr = doc.getOcrText() != null
+                        && doc.getOcrText().toLowerCase(Locale.ROOT).contains(currentSearchQuery);
+
+                if (matchesTitle || matchesType || matchesTags || matchesOcr) {
+                    filteredDocumentList.add(doc);
+                }
+            }
+        }
+
+        vaultAdapter.updateData(filteredDocumentList);
+        updateEmptyState(filteredDocumentList.isEmpty());
+        if (currentSearchQuery.isEmpty()) {
+            updateDocCount(masterDocumentList.size());
+        } else {
+            tvDocCount.setText(filteredDocumentList.size() + " of " + masterDocumentList.size() + " found");
+        }
     }
 
     private void setClickListeners() {
@@ -231,21 +300,18 @@ public class VaultActivity extends AppCompatActivity
                     }
 
                     if (snapshots != null) {
-                        // Firestore auto-maps documents to DocumentModel via reflection
-                        // (requires the no-arg constructor in DocumentModel)
                         List<DocumentModel> freshList =
                                 snapshots.toObjects(DocumentModel.class);
 
-                        // Inject docId from document reference (Firestore doesn't
-                        // include the ID in the document fields by default)
                         for (int i = 0; i < freshList.size(); i++) {
                             freshList.get(i).setDocId(
                                     snapshots.getDocuments().get(i).getId());
                         }
 
-                        vaultAdapter.updateData(freshList);
-                        updateEmptyState(freshList.isEmpty());
-                        updateDocCount(freshList.size());
+                        masterDocumentList.clear();
+                        masterDocumentList.addAll(freshList);
+                        filterDocuments(currentSearchQuery);
+
                         VaultWidgetProvider.updateAllWidgets(this, freshList.size(), isWatcherRunning);
                         Log.d(TAG, "Vault synced: " + freshList.size() + " documents.");
                     }
@@ -278,22 +344,87 @@ public class VaultActivity extends AppCompatActivity
     }
 
     /**
-     * Long press — show contextual menu (share QR, delete, export PDF).
+     * Long press — show contextual menu (rename, share QR, export PDF, delete).
      */
     @Override
     public void onDocumentLongClick(DocumentModel document, int position) {
         Log.d(TAG, "Document long-pressed: " + document.getTitle());
         new AlertDialog.Builder(this)
                 .setTitle(document.getTitle())
-                .setItems(new String[]{"📱 Share QR (Air-Gapped)", "📄 Open / Export PDF", "🗑 Delete"},
+                .setItems(new String[]{"✏️ Rename Document", "📱 Share QR (Air-Gapped)", "📄 Open / Export PDF", "🗑 Delete"},
                         (dialog, which) -> {
                             switch (which) {
-                                case 0: showQrShareDialog(document); break;
-                                case 1: exportOrSharePdf(document); break;
-                                case 2: confirmDeleteDocument(document); break;
+                                case 0: promptRenameDocument(document); break;
+                                case 1: showQrShareDialog(document); break;
+                                case 2: exportOrSharePdf(document); break;
+                                case 3: confirmDeleteDocument(document); break;
                             }
                         })
                 .show();
+    }
+
+    /**
+     * Shows a dialog allowing the user to rename the document.
+     */
+    private void promptRenameDocument(@NonNull DocumentModel document) {
+        final EditText input = new EditText(this);
+        input.setText(document.getTitle());
+        input.setSelection(input.getText().length());
+        input.setSingleLine(true);
+        input.setTextColor(getResources().getColor(R.color.ghostOnSurface, getTheme()));
+        input.setHintTextColor(getResources().getColor(R.color.ghostOnSurfaceMuted, getTheme()));
+
+        RelativeLayout container = new RelativeLayout(this);
+        RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+        );
+        int marginPx = (int) (20 * getResources().getDisplayMetrics().density);
+        params.setMargins(marginPx, marginPx / 2, marginPx, marginPx / 2);
+        input.setLayoutParams(params);
+        container.addView(input);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Rename Document")
+                .setMessage("Enter a new name for this secured document:")
+                .setView(container)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String newTitle = input.getText().toString().trim();
+                    if (newTitle.isEmpty()) {
+                        Toast.makeText(this, "Title cannot be empty", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    updateDocumentTitle(document, newTitle);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    /**
+     * Updates the document's title in Cloud Firestore and syncs local state.
+     */
+    private void updateDocumentTitle(@NonNull DocumentModel document, @NonNull String newTitle) {
+        FirebaseUser user = firebaseAuth.getCurrentUser();
+        if (user == null || document.getDocId() == null) {
+            Toast.makeText(this, "Unable to rename: document not found", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        firestore.collection("users")
+                .document(user.getUid())
+                .collection("documents")
+                .document(document.getDocId())
+                .update(DocumentModel.FIELD_TITLE, newTitle)
+                .addOnSuccessListener(aVoid -> {
+                    document.setTitle(newTitle);
+                    vaultAdapter.notifyDataSetChanged();
+                    Toast.makeText(this, "Renamed to: " + newTitle, Toast.LENGTH_SHORT).show();
+                    Log.d(TAG, "Document " + document.getDocId() + " renamed to " + newTitle);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to rename document", e);
+                    Toast.makeText(this, "Failed to rename: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
     }
 
     /**
@@ -419,7 +550,7 @@ public class VaultActivity extends AppCompatActivity
                 .apply();
 
         updateWatcherUI();
-        VaultWidgetProvider.updateAllWidgets(this, documentList.size(), isWatcherRunning);
+        VaultWidgetProvider.updateAllWidgets(this, masterDocumentList.size(), isWatcherRunning);
     }
 
     // ════════════════════════════════════════════════════════════════════════

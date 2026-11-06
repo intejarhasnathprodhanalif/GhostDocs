@@ -113,6 +113,50 @@
 
     </RelativeLayout>
 
+    <!-- ── Search & Filter Bar ───────────────────────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/layout_search"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/ghostSurface"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_stats">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="42dp"
+            android:background="@color/ghostSurfaceVariant"
+            android:paddingHorizontal="12dp">
+
+            <TextView
+                android:id="@+id/tv_search_icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_alignParentStart="true"
+                android:text="🔍"
+                android:textSize="14sp" />
+
+            <EditText
+                android:id="@+id/et_search_vault"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_toEndOf="@id/tv_search_icon"
+                android:layout_marginStart="8dp"
+                android:background="@null"
+                android:hint="Search title, type, tags, or OCR content..."
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:maxLines="1"
+                android:textColor="@color/ghostOnSurface"
+                android:textColorHint="@color/ghostOnSurfaceMuted"
+                android:textSize="13sp" />
+        </RelativeLayout>
+    </RelativeLayout>
+
     <!-- ── Main RecyclerView (Firestore-synced vault grid) ───────────────── -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_vault"
@@ -125,7 +169,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_stats"
+        app:layout_constraintTop_toBottomOf="@id/layout_search"
         tools:itemCount="6"
         tools:listitem="@layout/item_document" />
 
@@ -140,7 +184,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_stats"
+        app:layout_constraintTop_toBottomOf="@id/layout_search"
         tools:visibility="visible">
 
         <TextView

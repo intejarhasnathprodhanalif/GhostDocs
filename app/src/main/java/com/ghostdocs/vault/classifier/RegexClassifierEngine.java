@@ -11,6 +11,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -93,12 +94,8 @@ public class RegexClassifierEngine {
             }
         }
 
-        // Build a human-friendly title based on the classification and tags
-        if (!collectedTags.isEmpty()) {
-            derivedTitle = matchedType + " - " + collectedTags.get(0);
-        } else if (!DocumentModel.TYPE_OTHER.equals(matchedType)) {
-            derivedTitle = matchedType + " Document";
-        }
+        // Generate smart contextual human-friendly title instead of generic screenshot names
+        derivedTitle = generateSmartTitle(matchedType, collectedTags, ocrText, fallbackTitle);
 
         // Build native org.json.JSONObject metadata
         JSONObject jsonMetadata = new JSONObject();
@@ -263,6 +260,146 @@ public class RegexClassifierEngine {
             tags.add("Medical");
             return tags;
         }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Smart Contextual Titling Helpers
+    // ════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Generates a descriptive, human-readable title based on OCR content and classification.
+     */
+    @NonNull
+    public static String generateSmartTitle(@NonNull String matchedType,
+                                            @NonNull List<String> collectedTags,
+                                            @NonNull String ocrText,
+                                            @NonNull String fallbackTitle) {
+        // If the user already gave it a meaningful custom name (not Screenshot_... or IMG_...), retain it.
+        if (!isGenericFileName(fallbackTitle) && fallbackTitle.trim().length() > 0) {
+            return fallbackTitle.trim();
+        }
+
+        switch (matchedType) {
+            case DocumentModel.TYPE_RECEIPT: {
+                String merchant = extractMerchantOrProvider(ocrText);
+                String trxId = findTagWithPrefix(collectedTags, "TrxID:");
+                if (merchant != null && trxId != null) {
+                    return merchant + " Receipt (" + trxId.replace("TrxID:", "Trx ") + ")";
+                } else if (merchant != null) {
+                    return merchant + " Receipt";
+                } else if (trxId != null) {
+                    return "Payment (" + trxId.replace("TrxID:", "Trx ") + ")";
+                }
+                return "Payment Receipt";
+            }
+            case DocumentModel.TYPE_NID: {
+                String idTag = findTagWithPrefix(collectedTags, "ID:");
+                if (idTag != null) {
+                    return "National ID (" + idTag.replace("ID:", "#") + ")";
+                }
+                return "National Identity Card";
+            }
+            case DocumentModel.TYPE_PRESCRIPTION: {
+                String doctorOrClinic = extractDoctorOrClinic(ocrText);
+                if (doctorOrClinic != null) {
+                    return "Prescription - " + doctorOrClinic;
+                }
+                return "Medical Prescription";
+            }
+            case DocumentModel.TYPE_PASSWORD: {
+                return "Credentials / Secret Note";
+            }
+            default: {
+                // Try to grab the first clean, meaningful line of text
+                String meaningfulLine = extractFirstMeaningfulLine(ocrText);
+                if (meaningfulLine != null && !meaningfulLine.isEmpty()) {
+                    return meaningfulLine;
+                }
+                // Fallback to cleaned filename or generic default
+                return cleanFileName(fallbackTitle);
+            }
+        }
+    }
+
+    private static boolean isGenericFileName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return true;
+        }
+        String clean = name.trim().toLowerCase(Locale.ROOT);
+        return clean.matches("^(screenshot|img|pxl|pic|photo|image|doc|scan|wp_|whatsapp|camera|temp|frame|capture).*");
+    }
+
+    private static String cleanFileName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return "Secured Document";
+        }
+        int dotIdx = name.lastIndexOf('.');
+        if (dotIdx > 0) {
+            return name.substring(0, dotIdx);
+        }
+        return name;
+    }
+
+    private static String findTagWithPrefix(List<String> tags, String prefix) {
+        if (tags == null) return null;
+        for (String tag : tags) {
+            if (tag != null && tag.startsWith(prefix)) {
+                return tag;
+            }
+        }
+        return null;
+    }
+
+    private static String extractMerchantOrProvider(String text) {
+        if (text == null) return null;
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.contains("bkash")) return "bKash";
+        if (lower.contains("nagad")) return "Nagad";
+        if (lower.contains("rocket")) return "Rocket";
+        if (lower.contains("upay")) return "Upay";
+        if (lower.contains("amazon")) return "Amazon";
+        if (lower.contains("google play") || lower.contains("google *")) return "Google Play";
+        if (lower.contains("apple.com") || lower.contains("itunes") || lower.contains("app store")) return "Apple";
+        if (lower.contains("uber")) return "Uber";
+        if (lower.contains("foodpanda")) return "Foodpanda";
+        if (lower.contains("pathao")) return "Pathao";
+        if (lower.contains("daraz")) return "Daraz";
+        if (lower.contains("netflix")) return "Netflix";
+        if (lower.contains("spotify")) return "Spotify";
+        if (lower.contains("paypal")) return "PayPal";
+        return null;
+    }
+
+    private static String extractDoctorOrClinic(String text) {
+        if (text == null) return null;
+        Pattern drPattern = Pattern.compile("(?i)\\b(dr\\.?\\s+[A-Z][a-zA-Z]+(\\s+[A-Z][a-zA-Z]+)?)");
+        Matcher drMatcher = drPattern.matcher(text);
+        if (drMatcher.find()) {
+            return drMatcher.group(1).trim();
+        }
+        Pattern hospitalPattern = Pattern.compile("(?i)\\b([A-Z][a-zA-Z]+(\\s+[A-Z][a-zA-Z]+)?\\s+(Hospital|Clinic|Medical|Diagnostic))");
+        Matcher hospMatcher = hospitalPattern.matcher(text);
+        if (hospMatcher.find()) {
+            return hospMatcher.group(1).trim();
+        }
+        return null;
+    }
+
+    private static String extractFirstMeaningfulLine(String text) {
+        if (text == null) return null;
+        String[] lines = text.split("\\r?\\n");
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.length() < 4) continue;
+            if (trimmed.matches("(?i)^(\\d{1,2}:\\d{2}|\\d{1,3}%|lte|4g|5g|volte|am|pm|wifi).*")) continue;
+            if (trimmed.matches("^[^a-zA-Z0-9]+$")) continue;
+
+            if (trimmed.length() > 36) {
+                return trimmed.substring(0, 36).trim() + "...";
+            }
+            return trimmed;
+        }
+        return null;
     }
 }
 
