@@ -83,3 +83,4 @@ public class VaultWidgetProvider extends AppWidgetProvider {
         super.onDisabled(context);
     }
 }
+

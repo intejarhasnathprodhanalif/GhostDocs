@@ -33,3 +33,4 @@ public class SettingsActivity extends AppCompatActivity {
                 Toast.LENGTH_SHORT).show();
     }
 }
+

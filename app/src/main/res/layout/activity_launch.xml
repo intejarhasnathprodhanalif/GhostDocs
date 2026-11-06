@@ -72,3 +72,4 @@
         app:layout_constraintTop_toBottomOf="@id/tv_tagline" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+

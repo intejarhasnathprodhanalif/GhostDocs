@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  activity_login.xml — Firebase Auth Login Screen  (stub for Step 1 fix)
-  Full implementation in Step 2.
+  activity_login.xml — Firebase Auth Login Screen
+  Full implementation for Step 2.
+  Uses ConstraintLayout as required by spec.
 -->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -10,19 +11,262 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/ghostDarkBg"
+    android:fitsSystemWindows="true"
     tools:context=".activities.LoginActivity">
 
-    <TextView
-        android:id="@+id/tv_login_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/login_title"
-        android:textColor="@color/ghostOnSurface"
-        android:textSize="24sp"
-        android:textStyle="bold"
+    <!-- ── Scrollable content wrapper (handles keyboard push-up) ─────────── -->
+    <ScrollView
+        android:id="@+id/scroll_view"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="32dp"
+            android:paddingVertical="48dp">
+
+            <!-- Ghost emoji logo -->
+            <TextView
+                android:id="@+id/tv_logo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="👻"
+                android:textSize="56sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- App name -->
+            <TextView
+                android:id="@+id/tv_app_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/app_name"
+                android:textColor="@color/ghostOnSurface"
+                android:textSize="30sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_logo" />
+
+            <!-- Tagline -->
+            <TextView
+                android:id="@+id/tv_tagline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/app_tagline"
+                android:textColor="@color/ghostPrimary"
+                android:textSize="12sp"
+                android:letterSpacing="0.12"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_app_name" />
+
+            <!-- Section label: sign in / register (toggled dynamically) -->
+            <TextView
+                android:id="@+id/tv_section_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="40dp"
+                android:text="@string/login_title"
+                android:textColor="@color/ghostOnSurfaceMuted"
+                android:textSize="13sp"
+                android:letterSpacing="0.08"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_tagline" />
+
+            <!-- ── Email field ──────────────────────────────────────────── -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_email"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:hint="@string/hint_email"
+                app:boxStrokeColor="@color/ghostPrimary"
+                app:hintTextColor="@color/ghostOnSurfaceMuted"
+                app:startIconDrawable="@android:drawable/ic_dialog_email"
+                app:startIconTint="@color/ghostOnSurfaceMuted"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_section_label">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_email"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textEmailAddress"
+                    android:textColor="@color/ghostOnSurface"
+                    android:maxLines="1" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- ── Password field ───────────────────────────────────────── -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_password"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:hint="@string/hint_password"
+                app:boxStrokeColor="@color/ghostPrimary"
+                app:hintTextColor="@color/ghostOnSurfaceMuted"
+                app:passwordToggleEnabled="true"
+                app:startIconDrawable="@android:drawable/ic_lock_lock"
+                app:startIconTint="@color/ghostOnSurfaceMuted"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/til_email">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPassword"
+                    android:textColor="@color/ghostOnSurface"
+                    android:maxLines="1" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- ── Error message (hidden by default) ───────────────────── -->
+            <TextView
+                android:id="@+id/tv_error"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:textColor="@color/ghostError"
+                android:textSize="13sp"
+                android:visibility="gone"
+                android:gravity="center"
+                tools:text="Invalid email or password."
+                tools:visibility="visible"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/til_password" />
+
+            <!-- ── Primary action button (Sign In / Register) ──────────── -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_primary_action"
+                style="@style/Button.GhostDocs.Primary"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginTop="24dp"
+                android:text="@string/btn_login_email"
+                android:textSize="15sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_error" />
+
+            <!-- Loading spinner (shown during async Firebase calls) -->
+            <ProgressBar
+                android:id="@+id/progress_bar"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginTop="12dp"
+                android:indeterminateTint="@color/ghostPrimary"
+                android:visibility="gone"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/btn_primary_action" />
+
+            <!-- ── Divider: "or" ────────────────────────────────────────── -->
+            <View
+                android:id="@+id/divider_left"
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_marginTop="28dp"
+                android:layout_marginEnd="12dp"
+                android:background="@color/ghostDivider"
+                app:layout_constraintBottom_toBottomOf="@id/tv_or"
+                app:layout_constraintEnd_toStartOf="@id/tv_or"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/progress_bar" />
+
+            <TextView
+                android:id="@+id/tv_or"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:paddingHorizontal="8dp"
+                android:text="or"
+                android:textColor="@color/ghostOnSurfaceMuted"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/progress_bar" />
+
+            <View
+                android:id="@+id/divider_right"
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_marginStart="12dp"
+                android:background="@color/ghostDivider"
+                app:layout_constraintBottom_toBottomOf="@id/tv_or"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/tv_or"
+                app:layout_constraintTop_toBottomOf="@id/progress_bar" />
+
+            <!-- ── Google Sign-In button ────────────────────────────────── -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_google_sign_in"
+                style="@style/Button.GhostDocs.Outlined"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginTop="20dp"
+                android:text="@string/btn_login_google"
+                android:textSize="14sp"
+                app:icon="@android:drawable/ic_menu_search"
+                app:iconGravity="start"
+                app:iconTint="@color/ghostPrimary"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_or" />
+
+            <!-- ── Toggle: Sign In ↔ Register ──────────────────────────── -->
+            <LinearLayout
+                android:id="@+id/ll_toggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:orientation="horizontal"
+                android:gravity="center"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/btn_google_sign_in">
+
+                <TextView
+                    android:id="@+id/tv_toggle_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_no_account"
+                    android:textColor="@color/ghostOnSurfaceMuted"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tv_toggle_action"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="@string/btn_register"
+                    android:textColor="@color/ghostPrimary"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:padding="4dp" />
+
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </ScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

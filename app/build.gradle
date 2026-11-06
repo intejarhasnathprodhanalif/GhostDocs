@@ -110,6 +110,12 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.3'
 
     // ════════════════════════════════════════════════════════════════════════
+    // Google Sign-In — Required for Firebase Auth with Google provider
+    // Part of official Google Play Services SDK (not a third-party library)
+    // ════════════════════════════════════════════════════════════════════════
+    implementation 'com.google.android.gms:play-services-auth:21.2.0'
+
+    // ════════════════════════════════════════════════════════════════════════
     // Testing
     // ════════════════════════════════════════════════════════════════════════
     testImplementation         'junit:junit:4.13.2'

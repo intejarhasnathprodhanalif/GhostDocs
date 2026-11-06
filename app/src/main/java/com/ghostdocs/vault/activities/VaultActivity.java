@@ -44,3 +44,4 @@ public class VaultActivity extends AppCompatActivity {
         setIntent(intent);
     }
 }
+
