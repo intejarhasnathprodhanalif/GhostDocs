@@ -16,7 +16,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.ghostdocs.vault.R;
+import com.ghostdocs.vault.classifier.RegexClassifierEngine;
+import com.ghostdocs.vault.model.DocumentModel;
 import com.ghostdocs.vault.observer.MediaContentObserver;
+import com.ghostdocs.vault.tasks.OcrTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
 import com.ghostdocs.vault.util.NotificationHelper;
 import com.google.firebase.auth.FirebaseAuth;
@@ -24,17 +27,20 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ServerValue;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * WatcherService — The Invisible Background Guardian
  *
  * <p>Runs continuously as a Foreground Service to protect sensitive media in real-time.
  * Monitors Android's {@link MediaStore} via {@link MediaContentObserver}, dispatches heavy
- * image analysis tasks to {@link VaultExecutor}, and streams live telemetry to Firebase
- * Realtime Database.
+ * image analysis tasks to {@link VaultExecutor}, executes ML Kit OCR & Regex parsing,
+ * and streams live telemetry to Firebase Realtime Database and Cloud Firestore.
  *
  * <p><b>OOP Principles:</b>
  * <ul>
@@ -170,35 +176,76 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
 
     /**
      * Pipeline processing method executed entirely on a worker thread.
-     * Steps 5-8 will integrate OCR, OpenCV crop, AES-256 encryption, and PDF export here.
+     * Integrates ML Kit OCR, Regex keyword extraction, JSONObject generation,
+     * and Firestore persistence.
      */
     private void processIncomingMedia(Uri imageUri, String displayName, String mimeType, long dateAdded) {
         try {
             Log.d(TAG, "Background processing started for: " + displayName);
 
-            // Step 4 Hook: Telemetry update
+            // Step 1: Execute on-device ML Kit OCR Task
+            OcrTask ocrTask = new OcrTask(this, imageUri, displayName, null);
+            OcrTask.OcrResult ocrResult = ocrTask.doInBackground();
+
+            RegexClassifierEngine.ClassificationResult classification = ocrResult.getClassification();
+            String docType = classification.getDocType();
+            String title = classification.getTitle();
+            List<String> tags = classification.getTags();
+            String fullOcrText = ocrResult.getFullText();
+
+            Log.i(TAG, "Pipeline OCR complete -> Category: " + docType + ", Title: " + title);
+
+            // Step 2: Push structured metadata to Cloud Firestore if user is authenticated
+            FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+            if (currentUser != null) {
+                String docId = UUID.randomUUID().toString();
+                long timestamp = System.currentTimeMillis();
+
+                DocumentModel docModel = new DocumentModel(
+                        docId,
+                        title,
+                        fullOcrText,
+                        "", // Encrypted local path (Step 7)
+                        imageUri.toString(), // Temporary thumbnail reference until Step 7
+                        "", // PDF path (Step 8)
+                        timestamp,
+                        tags,
+                        docType,
+                        currentUser.getUid()
+                );
+
+                FirebaseFirestore.getInstance()
+                        .collection("users")
+                        .document(currentUser.getUid())
+                        .collection("documents")
+                        .document(docId)
+                        .set(docModel)
+                        .addOnSuccessListener(unused -> Log.d(TAG, "Metadata pushed to Firestore: " + docId))
+                        .addOnFailureListener(e -> Log.e(TAG, "Failed pushing metadata to Firestore", e));
+
+                // Step 3: Trigger local notification
+                NotificationHelper.showDocumentSecuredNotification(this, title, docType);
+            }
+
+            // Step 4: Update Realtime Database status
             Map<String, Object> logEntry = new HashMap<>();
             logEntry.put("displayName", displayName);
-            logEntry.put("uri", imageUri.toString());
-            logEntry.put("mimeType", mimeType);
+            logEntry.put("docType", docType);
+            logEntry.put("title", title);
+            logEntry.put("tags", tags);
             logEntry.put("detectedAt", ServerValue.TIMESTAMP);
 
             if (watcherDbRef != null) {
                 watcherDbRef.child("recent_captures").push().setValue(logEntry);
             }
 
-            // Simulated step placeholder (Steps 5-8 will hook concrete BaseVaultTask subclasses here)
-            Thread.sleep(800);
-
-            // Finished step
-            updateWatcherStatus(STATUS_ACTIVE, "Monitoring active. Last verified: " + displayName);
+            updateWatcherStatus(STATUS_ACTIVE, "Secured: " + title);
             updateForegroundNotification(getString(R.string.watcher_notification_text));
 
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         } catch (Exception e) {
             Log.e(TAG, "Error in processIncomingMedia pipeline", e);
             updateWatcherStatus(STATUS_ACTIVE, "Idle after processing error");
+            updateForegroundNotification(getString(R.string.watcher_notification_text));
         }
     }
 
