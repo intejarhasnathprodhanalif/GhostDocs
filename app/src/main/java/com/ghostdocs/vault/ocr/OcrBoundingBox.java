@@ -37,3 +37,4 @@ public class OcrBoundingBox {
         return new Rect(boundingBox);
     }
 }
+

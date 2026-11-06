@@ -123,3 +123,4 @@ public class OcrTask extends BaseVaultTask<OcrTask.OcrResult> {
         return new OcrResult(rawText, classification, boundingBoxes, width, height);
     }
 }
+

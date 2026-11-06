@@ -41,3 +41,4 @@ public interface DocumentRule {
     @NonNull
     List<String> extractTags(@NonNull String text);
 }
+
