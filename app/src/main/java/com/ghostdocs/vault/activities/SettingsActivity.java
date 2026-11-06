@@ -65,12 +65,13 @@ public class SettingsActivity extends AppCompatActivity {
     private static final int IDX_AUTO_DELETE    = 1;
     private static final int IDX_CONFIRM_SECURE = 2;
     private static final int IDX_EXCLUDE_NOTES  = 3;
-    private static final int IDX_PERMISSIONS    = 4;
-    private static final int IDX_RESTORE_ALL    = 5;
-    private static final int IDX_EXPORT_PDF     = 6;
-    private static final int IDX_CLEAR_VAULT    = 7;
-    private static final int IDX_ABOUT          = 8;
-    private static final int IDX_SIGN_OUT       = 9;
+    private static final int IDX_IMPORT_OLD     = 4;
+    private static final int IDX_PERMISSIONS    = 5;
+    private static final int IDX_RESTORE_ALL    = 6;
+    private static final int IDX_EXPORT_PDF     = 7;
+    private static final int IDX_CLEAR_VAULT    = 8;
+    private static final int IDX_ABOUT          = 9;
+    private static final int IDX_SIGN_OUT       = 10;
 
     // ── Views ────────────────────────────────────────────────────────────────
     private ListView        lvSettings;
@@ -132,18 +133,21 @@ public class SettingsActivity extends AppCompatActivity {
                 "Exclude Class Notes & Lecture Photos",
                 excludeNotes ? "ON (Saved in Gallery)" : "OFF"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 4
+                "🔒 Scan & Secure Old Photos",
+                "Import pre-existing screenshots"));
+        settingsItems.add(new LogListAdapter.LogItem(                               // 5
                 "Storage Permissions",
                 PermissionHelper.hasAllRequiredPermissions(this) ? "✓ Granted" : "⚠ Required"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 5
+        settingsItems.add(new LogListAdapter.LogItem(                               // 6
                 "📥 Restore All to Gallery (Unvault for Uninstall)",
                 "Restores all photos to Gallery"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 6
-                getString(R.string.settings_export_pdf)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 7
-                getString(R.string.settings_clear_vault)));
+                getString(R.string.settings_export_pdf)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 8
-                getString(R.string.settings_about)));
+                getString(R.string.settings_clear_vault)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 9
+                getString(R.string.settings_about)));
+        settingsItems.add(new LogListAdapter.LogItem(                               // 10
                 "Sign Out", "→"));
     }
 
@@ -177,6 +181,7 @@ public class SettingsActivity extends AppCompatActivity {
             case IDX_AUTO_DELETE:    toggleAutoDelete();           break;
             case IDX_CONFIRM_SECURE: toggleConfirmSecure();        break;
             case IDX_EXCLUDE_NOTES:  toggleExcludeNotes();         break;
+            case IDX_IMPORT_OLD:     openImportOldPhotos();        break;
             case IDX_PERMISSIONS:    openPermissions();            break;
             case IDX_RESTORE_ALL:    confirmRestoreAllToGallery(); break;
             case IDX_EXPORT_PDF:     exportPdf();                  break;
@@ -184,6 +189,10 @@ public class SettingsActivity extends AppCompatActivity {
             case IDX_ABOUT:          showAbout();                   break;
             case IDX_SIGN_OUT:       signOut();                     break;
         }
+    }
+
+    private void openImportOldPhotos() {
+        startActivity(new android.content.Intent(this, ImportPhotosActivity.class));
     }
 
     // ════════════════════════════════════════════════════════════════════════

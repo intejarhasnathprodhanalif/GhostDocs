@@ -75,6 +75,19 @@
             android:textSize="20sp"
             android:contentDescription="Settings" />
 
+        <!-- Import / Scan Old Photos button -->
+        <TextView
+            android:id="@+id/btn_import_photos"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toStartOf="@id/btn_open_settings"
+            android:padding="8dp"
+            android:text="📥"
+            android:textColor="@color/ghostPrimary"
+            android:textSize="20sp"
+            android:contentDescription="Import old photos" />
+
     </RelativeLayout>
 
     <!-- ── Stats Bar ──────────────────────────────────────────────────────── -->
@@ -204,6 +217,16 @@
             android:gravity="center"
             android:lineSpacingMultiplier="1.4"
             android:paddingHorizontal="40dp" />
+
+        <!-- Quick Import Pre-existing Photos Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_empty_import"
+            style="@style/Button.GhostDocs.Primary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="📥 Secure Old Gallery Photos"
+            android:textSize="13sp" />
 
     </LinearLayout>
 

@@ -130,6 +130,15 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
+        <!--
+            ImportPhotosActivity: Scans and imports pre-existing photos & screenshots
+            taken before GhostDocs was installed.
+        -->
+        <activity
+            android:name=".activities.ImportPhotosActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
         <!-- ── SERVICES ────────────────────────────────────────────────── -->
 
         <!--

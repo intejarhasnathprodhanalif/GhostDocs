@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  activity_import_photos.xml — UI for Scanning & Securing Old Photos & Screenshots
+  Root: ConstraintLayout (as required by project specifications).
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ghostDarkBg">
+
+    <!-- ── 1. Top Custom Toolbar ─────────────────────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/toolbar_import"
+        android:layout_width="0dp"
+        android:layout_height="60dp"
+        android:background="@color/ghostSurface"
+        android:paddingHorizontal="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/btn_back_import"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:padding="8dp"
+            android:text="←"
+            android:textColor="@color/ghostPrimary"
+            android:textSize="24sp"
+            android:contentDescription="Back" />
+
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@id/btn_back_import"
+            android:layout_marginStart="8dp">
+
+            <TextView
+                android:id="@+id/tv_toolbar_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Secure Old Photos"
+                android:textColor="@color/ghostOnSurface"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_toolbar_title"
+                android:text="Scan &amp; vault pre-existing device screenshots"
+                android:textColor="@color/ghostOnSurfaceMuted"
+                android:textSize="11sp" />
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+    <!-- ── 2. Quick Action Bar (Browse Gallery & Rescan) ────────────────── -->
+    <RelativeLayout
+        android:id="@+id/layout_quick_actions"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/ghostSurfaceVariant"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_import">
+
+        <!-- Browse full gallery / albums button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_browse_gallery"
+            style="@style/Button.GhostDocs.Primary"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@+id/btn_rescan_device"
+            android:layout_marginEnd="8dp"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="0dp"
+            android:text="📁 Pick from Gallery"
+            android:textSize="12sp" />
+
+        <!-- Rescan device screenshots button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_rescan_device"
+            style="@style/Button.GhostDocs.Outlined"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:layout_alignParentEnd="true"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="0dp"
+            android:text="🔄 Rescan"
+            android:textSize="12sp" />
+
+    </RelativeLayout>
+
+    <!-- ── 3. Selection & Count Bar ──────────────────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/layout_selection_bar"
+        android:layout_width="0dp"
+        android:layout_height="44dp"
+        android:background="@color/ghostSurface"
+        android:paddingHorizontal="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_quick_actions">
+
+        <CheckBox
+            android:id="@+id/cb_select_all"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:buttonTint="@color/ghostPrimary"
+            android:text="Select All"
+            android:textColor="@color/ghostOnSurface"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/tv_selection_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentEnd="true"
+            android:textColor="@color/ghostPrimary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            tools:text="0 of 14 selected" />
+
+    </RelativeLayout>
+
+    <!-- ── 4. Main Photo Grid ────────────────────────────────────────────── -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_gallery_grid"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:padding="6dp"
+        app:layout_constraintBottom_toTopOf="@id/layout_bottom_bar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_selection_bar"
+        tools:listitem="@layout/item_gallery_photo" />
+
+    <!-- ── Empty State ───────────────────────────────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/layout_empty_state"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:gravity="center"
+        android:padding="32dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/layout_bottom_bar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_selection_bar"
+        tools:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_empty_icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:text="🖼️"
+            android:textSize="56sp" />
+
+        <TextView
+            android:id="@+id/tv_empty_headline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/tv_empty_icon"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="16dp"
+            android:text="No Unvaulted Screenshots Detected"
+            android:textColor="@color/ghostOnSurface"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_empty_sub"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/tv_empty_headline"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="All detected screenshots are either already secured or none were found.\nTap 'Pick from Gallery' above to manually select photos."
+            android:textColor="@color/ghostOnSurfaceMuted"
+            android:textSize="13sp" />
+
+    </RelativeLayout>
+
+    <!-- ── 5. Bottom Action Bar ──────────────────────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/layout_bottom_bar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/ghostSurface"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="12dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- Checkbox: Auto-delete original from gallery -->
+        <CheckBox
+            android:id="@+id/cb_delete_originals"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true"
+            android:buttonTint="@color/ghostAccent"
+            android:checked="true"
+            android:text="Delete originals from gallery after securing"
+            android:textColor="@color/ghostOnSurfaceMuted"
+            android:textSize="12sp" />
+
+        <!-- Prominent Secure Action Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_secure_selected"
+            style="@style/Button.GhostDocs.Primary"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_below="@id/cb_delete_originals"
+            android:layout_marginTop="4dp"
+            android:enabled="false"
+            android:text="🔒 Secure Selected Photos (0)"
+            android:textSize="14sp" />
+
+    </RelativeLayout>
+
+    <!-- ── 6. Full Screen Progress Overlay ───────────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/layout_progress_overlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#D9000000"
+        android:clickable="true"
+        android:elevation="25dp"
+        android:focusable="true"
+        android:gravity="center"
+        android:padding="24dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Card.GhostDocs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+            app:strokeColor="@color/ghostPrimary"
+            app:strokeWidth="1dp">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="20dp">
+
+                <ProgressBar
+                    android:id="@+id/pb_progress_spinner"
+                    style="?android:attr/progressBarStyleLarge"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_alignParentTop="true"
+                    android:indeterminateTint="@color/ghostPrimary" />
+
+                <TextView
+                    android:id="@+id/tv_progress_headline"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_toEndOf="@id/pb_progress_spinner"
+                    android:layout_marginStart="16dp"
+                    android:text="Securing Old Photos..."
+                    android:textColor="@color/ghostOnSurface"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_progress_step"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/tv_progress_headline"
+                    android:layout_toEndOf="@id/pb_progress_spinner"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginTop="4dp"
+                    android:text="Processing 1 of 5..."
+                    android:textColor="@color/ghostPrimary"
+                    android:textSize="13sp" />
+
+                <ProgressBar
+                    android:id="@+id/pb_determinate_bar"
+                    style="@android:style/Widget.ProgressBar.Horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:layout_below="@id/pb_progress_spinner"
+                    android:layout_marginTop="16dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressTint="@color/ghostPrimary" />
+
+                <TextView
+                    android:id="@+id/tv_progress_filename"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/pb_determinate_bar"
+                    android:layout_marginTop="8dp"
+                    android:ellipsize="middle"
+                    android:singleLine="true"
+                    android:text="Screenshot_2024.png"
+                    android:textColor="@color/ghostOnSurfaceMuted"
+                    android:textSize="11sp" />
+
+            </RelativeLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </RelativeLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

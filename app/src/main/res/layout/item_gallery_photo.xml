@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  item_gallery_photo.xml — Thumbnail card for pre-existing gallery photo import.
+  Root: MaterialCardView wrapping RelativeLayout.
+-->
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Card.GhostDocs"
+    android:layout_width="match_parent"
+    android:layout_height="130dp"
+    android:layout_margin="4dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardCornerRadius="10dp"
+    app:strokeColor="@color/ghostDivider"
+    app:strokeWidth="1dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- Image thumbnail -->
+        <ImageView
+            android:id="@+id/iv_gallery_thumbnail"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:background="@color/ghostSurfaceVariant"
+            android:contentDescription="Gallery Photo" />
+
+        <!-- Bottom gradient shadow for readable text -->
+        <View
+            android:id="@+id/view_thumbnail_scrim"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_alignParentBottom="true"
+            android:background="#B3000000" />
+
+        <!-- Selection Checkbox indicator (Top Right) -->
+        <CheckBox
+            android:id="@+id/cb_photo_selected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_margin="4dp"
+            android:buttonTint="@color/ghostPrimary"
+            android:clickable="false"
+            android:focusable="false" />
+
+        <!-- Already Vaulted Badge (Top Left) -->
+        <TextView
+            android:id="@+id/tv_already_vaulted_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentStart="true"
+            android:layout_margin="6dp"
+            android:background="@color/ghostSurfaceVariant"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:text="🔒 SECURED"
+            android:textColor="@color/ghostSuccess"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <!-- Photo display name -->
+        <TextView
+            android:id="@+id/tv_photo_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_above="@id/tv_photo_date"
+            android:layout_alignParentStart="true"
+            android:layout_marginHorizontal="6dp"
+            android:ellipsize="middle"
+            android:singleLine="true"
+            android:textColor="@color/ghostOnSurface"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            tools:text="Screenshot_20240315.png" />
+
+        <!-- Photo date or size -->
+        <TextView
+            android:id="@+id/tv_photo_date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginHorizontal="6dp"
+            android:layout_marginBottom="4dp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/ghostOnSurfaceMuted"
+            android:textSize="9sp"
+            tools:text="Mar 15, 2024 • 1.2 MB" />
+
+        <!-- Dim overlay when already vaulted or disabled -->
+        <View
+            android:id="@+id/view_dim_disabled"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#99000000"
+            android:visibility="gone" />
+
+    </RelativeLayout>
+
+</com.google.android.material.card.MaterialCardView>

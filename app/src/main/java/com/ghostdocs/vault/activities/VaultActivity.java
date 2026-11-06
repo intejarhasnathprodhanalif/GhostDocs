@@ -272,6 +272,20 @@ public class VaultActivity extends AppCompatActivity
     }
 
     private void setClickListeners() {
+        // Toolbar — import old photos
+        View btnImportPhotos = findViewById(R.id.btn_import_photos);
+        if (btnImportPhotos != null) {
+            btnImportPhotos.setOnClickListener(v ->
+                    startActivity(new Intent(this, ImportPhotosActivity.class)));
+        }
+
+        // Empty state — quick import button
+        View btnEmptyImport = findViewById(R.id.btn_empty_import);
+        if (btnEmptyImport != null) {
+            btnEmptyImport.setOnClickListener(v ->
+                    startActivity(new Intent(this, ImportPhotosActivity.class)));
+        }
+
         // Toolbar — settings
         findViewById(R.id.btn_open_settings).setOnClickListener(
                 v -> startActivity(new Intent(this, SettingsActivity.class)));
