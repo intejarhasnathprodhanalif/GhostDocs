@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  dialog_qr_share.xml — Air-Gapped QR Transfer Dialog
+  Uses RelativeLayout strictly conforming to the XML layout specification.
+-->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/ghostSurface"
+    android:padding="24dp">
+
+    <!-- Header: Title and Type -->
+    <TextView
+        android:id="@+id/tv_qr_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:text="Air-Gapped Vault Share"
+        android:textColor="@color/ghostOnSurface"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tv_qr_type"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tv_qr_title"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="4dp"
+        android:background="@color/ghostDivider"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="3dp"
+        android:text="RECEIPT"
+        android:textColor="@color/ghostPrimary"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <!-- Center QR Code View Container -->
+    <RelativeLayout
+        android:id="@+id/container_qr"
+        android:layout_width="260dp"
+        android:layout_height="260dp"
+        android:layout_below="@id/tv_qr_type"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="20dp"
+        android:background="@color/ghostSurfaceVariant"
+        android:padding="12dp">
+
+        <ImageView
+            android:id="@+id/iv_qr_code"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/cd_qr_code"
+            android:scaleType="fitCenter" />
+
+        <ProgressBar
+            android:id="@+id/pb_qr_loading"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_centerInParent="true"
+            android:indeterminateTint="@color/ghostPrimary" />
+
+    </RelativeLayout>
+
+    <!-- Subtitle Explanation -->
+    <TextView
+        android:id="@+id/tv_qr_instructions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/container_qr"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:text="Air-gapped verification: Scan this QR code with any camera or scanner to transfer structured metadata without an internet or Bluetooth connection."
+        android:textColor="@color/ghostOnSurfaceMuted"
+        android:textSize="12sp"
+        android:lineSpacingMultiplier="1.2" />
+
+    <!-- Close Action Button -->
+    <TextView
+        android:id="@+id/btn_qr_close"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tv_qr_instructions"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="20dp"
+        android:background="@color/ghostPrimary"
+        android:paddingHorizontal="32dp"
+        android:paddingVertical="10dp"
+        android:text="Close"
+        android:textColor="@color/ghostOnPrimary"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+</RelativeLayout>

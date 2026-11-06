@@ -2,10 +2,13 @@ package com.ghostdocs.vault.activities;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Build;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,10 +23,13 @@ import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.adapter.VaultRecyclerAdapter;
 import com.ghostdocs.vault.model.DocumentModel;
 import com.ghostdocs.vault.service.WatcherService;
+import com.ghostdocs.vault.tasks.BaseVaultTask;
 import com.ghostdocs.vault.tasks.PdfGeneratorTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
 import com.ghostdocs.vault.util.PdfExportHelper;
 import com.ghostdocs.vault.util.PermissionHelper;
+import com.ghostdocs.vault.util.QrCodeGenerator;
+import com.ghostdocs.vault.widget.VaultWidgetProvider;
 
 import java.io.File;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -116,6 +122,7 @@ public class VaultActivity extends AppCompatActivity
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         isWatcherRunning = prefs.getBoolean(PREF_WATCHER_ON, false);
         updateWatcherUI();
+        VaultWidgetProvider.updateAllWidgets(this, documentList.size(), isWatcherRunning);
     }
 
     @Override
@@ -238,6 +245,7 @@ public class VaultActivity extends AppCompatActivity
                         vaultAdapter.updateData(freshList);
                         updateEmptyState(freshList.isEmpty());
                         updateDocCount(freshList.size());
+                        VaultWidgetProvider.updateAllWidgets(this, freshList.size(), isWatcherRunning);
                         Log.d(TAG, "Vault synced: " + freshList.size() + " documents.");
                     }
                 });
@@ -276,15 +284,51 @@ public class VaultActivity extends AppCompatActivity
         Log.d(TAG, "Document long-pressed: " + document.getTitle());
         new AlertDialog.Builder(this)
                 .setTitle(document.getTitle())
-                .setItems(new String[]{"📱 Share QR", "📄 Open / Export PDF", "🗑 Delete"},
+                .setItems(new String[]{"📱 Share QR (Air-Gapped)", "📄 Open / Export PDF", "🗑 Delete"},
                         (dialog, which) -> {
                             switch (which) {
-                                case 0: Toast.makeText(this, "QR — coming in Step 9", Toast.LENGTH_SHORT).show(); break;
+                                case 0: showQrShareDialog(document); break;
                                 case 1: exportOrSharePdf(document); break;
                                 case 2: confirmDeleteDocument(document); break;
                             }
                         })
                 .show();
+    }
+
+    /**
+     * Displays an air-gapped QR code modal containing the complete verified metadata.
+     */
+    private void showQrShareDialog(DocumentModel document) {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_qr_share, null);
+        TextView tvTitle = dialogView.findViewById(R.id.tv_qr_title);
+        TextView tvType = dialogView.findViewById(R.id.tv_qr_type);
+        ImageView ivQr = dialogView.findViewById(R.id.iv_qr_code);
+        ProgressBar pbQr = dialogView.findViewById(R.id.pb_qr_loading);
+        TextView btnClose = dialogView.findViewById(R.id.btn_qr_close);
+
+        tvTitle.setText(document.getTitle());
+        tvType.setText(document.getDocType());
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .create();
+
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        // Asynchronously render QR code on worker thread to keep UI fluid
+        VaultExecutor.getInstance().execute(() -> {
+            Bitmap qrBitmap = QrCodeGenerator.generateDocumentQr(document, 512);
+            runOnUiThread(() -> {
+                pbQr.setVisibility(View.GONE);
+                if (qrBitmap != null) {
+                    ivQr.setImageBitmap(qrBitmap);
+                } else {
+                    Toast.makeText(VaultActivity.this, "Failed to generate QR code", Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
+
+        dialog.show();
     }
 
     /**
@@ -374,6 +418,7 @@ public class VaultActivity extends AppCompatActivity
                 .apply();
 
         updateWatcherUI();
+        VaultWidgetProvider.updateAllWidgets(this, documentList.size(), isWatcherRunning);
     }
 
     // ════════════════════════════════════════════════════════════════════════
