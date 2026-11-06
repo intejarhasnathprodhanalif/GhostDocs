@@ -1,5 +1,8 @@
 package com.ghostdocs.vault.activities;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -26,6 +29,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.adapter.VaultRecyclerAdapter;
 import com.ghostdocs.vault.model.DocumentModel;
+import com.ghostdocs.vault.security.AesEncryptionHelper;
 import com.ghostdocs.vault.service.WatcherService;
 import com.ghostdocs.vault.tasks.BaseVaultTask;
 import com.ghostdocs.vault.tasks.PdfGeneratorTask;
@@ -35,6 +39,7 @@ import com.ghostdocs.vault.util.PermissionHelper;
 import com.ghostdocs.vault.util.QrCodeGenerator;
 import com.ghostdocs.vault.widget.VaultWidgetProvider;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
@@ -42,6 +47,8 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -428,14 +435,18 @@ public class VaultActivity extends AppCompatActivity
     }
 
     /**
-     * Displays an air-gapped QR code modal containing the complete verified metadata.
+     * Displays a QR code modal allowing cloud picture viewing in a web browser or air-gapped verification.
      */
     private void showQrShareDialog(DocumentModel document) {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_qr_share, null);
         TextView tvTitle = dialogView.findViewById(R.id.tv_qr_title);
         TextView tvType = dialogView.findViewById(R.id.tv_qr_type);
+        TextView btnModeCloud = dialogView.findViewById(R.id.btn_mode_cloud);
+        TextView btnModeAirgap = dialogView.findViewById(R.id.btn_mode_airgap);
         ImageView ivQr = dialogView.findViewById(R.id.iv_qr_code);
         ProgressBar pbQr = dialogView.findViewById(R.id.pb_qr_loading);
+        TextView tvInstructions = dialogView.findViewById(R.id.tv_qr_instructions);
+        TextView btnCopyLink = dialogView.findViewById(R.id.btn_qr_copy_link);
         TextView btnClose = dialogView.findViewById(R.id.btn_qr_close);
 
         tvTitle.setText(document.getTitle());
@@ -447,20 +458,159 @@ public class VaultActivity extends AppCompatActivity
 
         btnClose.setOnClickListener(v -> dialog.dismiss());
 
-        // Asynchronously render QR code on worker thread to keep UI fluid
-        VaultExecutor.getInstance().execute(() -> {
-            Bitmap qrBitmap = QrCodeGenerator.generateDocumentQr(document, 512);
-            runOnUiThread(() -> {
-                pbQr.setVisibility(View.GONE);
-                if (qrBitmap != null) {
-                    ivQr.setImageBitmap(qrBitmap);
-                } else {
-                    Toast.makeText(VaultActivity.this, "Failed to generate QR code", Toast.LENGTH_SHORT).show();
+        btnCopyLink.setOnClickListener(v -> {
+            if (document.getShareUrl() != null && !document.getShareUrl().isEmpty()) {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clip = ClipData.newPlainText("GhostDocs Picture Link", document.getShareUrl());
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(clip);
+                    Toast.makeText(this, "Picture link copied to clipboard!", Toast.LENGTH_SHORT).show();
                 }
-            });
+            }
         });
 
+        // Runnable for Air-Gapped mode
+        Runnable showAirGappedQr = () -> {
+            btnModeAirgap.setTextColor(getResources().getColor(R.color.ghostPrimary, getTheme()));
+            btnModeCloud.setTextColor(getResources().getColor(R.color.ghostOnSurfaceMuted, getTheme()));
+            btnCopyLink.setVisibility(View.GONE);
+            pbQr.setVisibility(View.VISIBLE);
+
+            VaultExecutor.getInstance().execute(() -> {
+                Bitmap qrBitmap = QrCodeGenerator.generateVerificationCardQr(document, 512);
+                runOnUiThread(() -> {
+                    pbQr.setVisibility(View.GONE);
+                    if (qrBitmap != null) {
+                        ivQr.setImageBitmap(qrBitmap);
+                    }
+                    tvInstructions.setText("📱 Air-Gapped Card: Scan to verify document details without internet.");
+                });
+            });
+        };
+
+        // Runnable for Cloud Browser mode
+        Runnable showCloudQr = () -> {
+            btnModeCloud.setTextColor(getResources().getColor(R.color.ghostPrimary, getTheme()));
+            btnModeAirgap.setTextColor(getResources().getColor(R.color.ghostOnSurfaceMuted, getTheme()));
+            pbQr.setVisibility(View.VISIBLE);
+
+            if (document.getShareUrl() != null && !document.getShareUrl().isEmpty()) {
+                btnCopyLink.setVisibility(View.VISIBLE);
+                VaultExecutor.getInstance().execute(() -> {
+                    Bitmap qrBitmap = QrCodeGenerator.generateCloudUrlQr(document.getShareUrl(), 512);
+                    runOnUiThread(() -> {
+                        pbQr.setVisibility(View.GONE);
+                        if (qrBitmap != null) {
+                            ivQr.setImageBitmap(qrBitmap);
+                        }
+                        tvInstructions.setText("🌐 Cloud Picture: Scan with any camera to view the picture in their browser!");
+                    });
+                });
+            } else {
+                tvInstructions.setText("Preparing cloud link for browser viewing...");
+                btnCopyLink.setVisibility(View.GONE);
+                uploadAndGenerateCloudQr(document, ivQr, pbQr, tvInstructions, btnCopyLink, showAirGappedQr);
+            }
+        };
+
+        btnModeCloud.setOnClickListener(v -> showCloudQr.run());
+        btnModeAirgap.setOnClickListener(v -> showAirGappedQr.run());
+
+        // Default: Open in Cloud Picture mode
+        showCloudQr.run();
+
         dialog.show();
+    }
+
+    /**
+     * Decrypts the document image, uploads it to Firebase Storage, and renders a QR code
+     * containing the signed download URL.
+     */
+    private void uploadAndGenerateCloudQr(DocumentModel document,
+                                          ImageView ivQr,
+                                          ProgressBar pbQr,
+                                          TextView tvInstructions,
+                                          TextView btnCopyLink,
+                                          Runnable fallbackToAirGapped) {
+        VaultExecutor.getInstance().execute(() -> {
+            try {
+                if (document.getEncryptedPath() == null || document.getEncryptedPath().isEmpty()) {
+                    throw new IllegalStateException("No encrypted file path available.");
+                }
+
+                File encFile = new File(document.getEncryptedPath());
+                if (!encFile.exists()) {
+                    throw new IllegalStateException("Encrypted file not found on disk.");
+                }
+
+                // 1. Decrypt AES-256-GCM ciphertext back into Bitmap
+                Bitmap bitmap = AesEncryptionHelper.getInstance().decryptFileToBitmap(encFile);
+                if (bitmap == null) {
+                    throw new IllegalStateException("Decryption failed to produce bitmap.");
+                }
+
+                // 2. Compress to JPEG
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, baos);
+                byte[] jpegBytes = baos.toByteArray();
+
+                // 3. Upload to Firebase Storage
+                FirebaseUser user = firebaseAuth.getCurrentUser();
+                String uid = user != null ? user.getUid() : "anonymous";
+                StorageReference storageRef = FirebaseStorage.getInstance()
+                        .getReference()
+                        .child("shares")
+                        .child(uid)
+                        .child(document.getDocId() + ".jpg");
+
+                runOnUiThread(() -> {
+                    storageRef.putBytes(jpegBytes)
+                            .continueWithTask(task -> {
+                                if (!task.isSuccessful() && task.getException() != null) {
+                                    throw task.getException();
+                                }
+                                return storageRef.getDownloadUrl();
+                            })
+                            .addOnSuccessListener(downloadUri -> {
+                                String url = downloadUri.toString();
+                                document.setShareUrl(url);
+
+                                // Persist shareUrl in Firestore
+                                if (user != null && document.getDocId() != null) {
+                                    firestore.collection("users")
+                                            .document(uid)
+                                            .collection("documents")
+                                            .document(document.getDocId())
+                                            .update(DocumentModel.FIELD_SHARE_URL, url);
+                                }
+
+                                // Generate QR code for the download URL
+                                VaultExecutor.getInstance().execute(() -> {
+                                    Bitmap qrBitmap = QrCodeGenerator.generateCloudUrlQr(url, 512);
+                                    runOnUiThread(() -> {
+                                        pbQr.setVisibility(View.GONE);
+                                        if (qrBitmap != null) {
+                                            ivQr.setImageBitmap(qrBitmap);
+                                        }
+                                        tvInstructions.setText("🌐 Cloud Picture: Scan with any camera to view the picture in their browser!");
+                                        btnCopyLink.setVisibility(View.VISIBLE);
+                                    });
+                                });
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.w(TAG, "Firebase Storage upload failed: " + e.getMessage());
+                                Toast.makeText(VaultActivity.this,
+                                        "Cloud upload unavailable. Switching to Air-Gapped card.",
+                                        Toast.LENGTH_LONG).show();
+                                fallbackToAirGapped.run();
+                            });
+                });
+
+            } catch (Exception ex) {
+                Log.e(TAG, "Error preparing image for cloud QR share", ex);
+                runOnUiThread(fallbackToAirGapped);
+            }
+        });
     }
 
     /**

@@ -90,6 +90,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-auth'          // Feature 1: Auth Gate
     implementation 'com.google.firebase:firebase-firestore'     // Feature 1 & 3: Metadata store
     implementation 'com.google.firebase:firebase-database'      // Feature 2: Watcher status sync
+    implementation 'com.google.firebase:firebase-storage'       // Cloud Sharing: QR Image View Link
     implementation 'com.google.firebase:firebase-analytics'
 
     // ════════════════════════════════════════════════════════════════════════

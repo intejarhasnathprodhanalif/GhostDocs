@@ -47,6 +47,8 @@ public final class QrCodeGenerator {
 
     /**
      * Generates a high-resolution QR code bitmap representing the given {@link DocumentModel}.
+     * If a Cloud Share URL is present, encodes the URL so other devices view the picture in their browser.
+     * Otherwise, encodes a formatted human-readable air-gapped verification card.
      *
      * @param document The vault document to encode.
      * @param dimension Dimension (width and height) in pixels.
@@ -54,13 +56,88 @@ public final class QrCodeGenerator {
      */
     @Nullable
     public static Bitmap generateDocumentQr(@NonNull DocumentModel document, int dimension) {
+        if (document.getShareUrl() != null && !document.getShareUrl().trim().isEmpty()) {
+            return generateCloudUrlQr(document.getShareUrl().trim(), dimension);
+        }
+        return generateVerificationCardQr(document, dimension);
+    }
+
+    /**
+     * Generates a QR code encoding a web URL (e.g. Firebase Storage cloud image link).
+     * When scanned with any smartphone camera, the device automatically prompts to open
+     * the image in their mobile browser.
+     *
+     * @param url Web URL to encode.
+     * @param dimension Dimension in pixels.
+     * @return QR {@link Bitmap}, or null on failure.
+     */
+    @Nullable
+    public static Bitmap generateCloudUrlQr(@NonNull String url, int dimension) {
         try {
-            JSONObject json = document.toJson();
-            return generateQrBitmap(json.toString(), dimension > 0 ? dimension : DEFAULT_QR_DIMENSION);
+            return generateQrBitmap(url, dimension > 0 ? dimension : DEFAULT_QR_DIMENSION);
         } catch (Exception e) {
-            Log.e(TAG, "Failed to encode DocumentModel into QR code", e);
+            Log.e(TAG, "Failed to encode Cloud URL into QR code", e);
             return null;
         }
+    }
+
+    /**
+     * Generates a QR code encoding a clean, human-readable verification card.
+     * Any standard smartphone camera displays a formatted summary rather than raw JSON.
+     *
+     * @param document Document model.
+     * @param dimension Dimension in pixels.
+     * @return QR {@link Bitmap}, or null on failure.
+     */
+    @Nullable
+    public static Bitmap generateVerificationCardQr(@NonNull DocumentModel document, int dimension) {
+        try {
+            String cardText = buildHumanReadableCard(document);
+            return generateQrBitmap(cardText, dimension > 0 ? dimension : DEFAULT_QR_DIMENSION);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to encode verification card into QR code", e);
+            return null;
+        }
+    }
+
+    /**
+     * Constructs a clean human-readable verification card string.
+     */
+    @NonNull
+    public static String buildHumanReadableCard(@NonNull DocumentModel document) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("🛡️ GHOSTDOCS SECURED VAULT\n");
+        sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+        sb.append("Title:    ").append(document.getTitle() != null ? document.getTitle() : "Untitled").append("\n");
+        sb.append("Category: ").append(document.getDocType() != null ? document.getDocType() : "OTHER").append("\n");
+
+        if (document.getFormattedDate() != null && !document.getFormattedDate().isEmpty()) {
+            sb.append("Date:     ").append(document.getFormattedDate()).append("\n");
+        }
+
+        if (document.getTags() != null && !document.getTags().isEmpty()) {
+            sb.append("Tags:     ");
+            for (int i = 0; i < document.getTags().size(); i++) {
+                sb.append(document.getTags().get(i));
+                if (i < document.getTags().size() - 1) sb.append(", ");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+        if (document.getOcrText() != null && !document.getOcrText().trim().isEmpty()) {
+            String cleanOcr = document.getOcrText().trim();
+            // Truncate to reasonable length so QR code remains easily scannable by cameras
+            if (cleanOcr.length() > 280) {
+                cleanOcr = cleanOcr.substring(0, 280) + "...";
+            }
+            sb.append("OCR Excerpt:\n").append(cleanOcr);
+        } else {
+            sb.append("Status: Hardware AES-256 Encrypted");
+        }
+
+        return sb.toString();
     }
 
     /**
