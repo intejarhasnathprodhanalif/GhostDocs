@@ -295,3 +295,4 @@ public final class PermissionHelper {
                 == PackageManager.PERMISSION_GRANTED;
     }
 }
+

@@ -4,6 +4,11 @@ import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.os.Build;
+import android.util.Log;
+
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreSettings;
+import com.google.firebase.firestore.PersistentCacheSettings;
 
 /**
  * GhostDocsApp — Application Subclass
@@ -44,8 +49,37 @@ public class GhostDocsApp extends Application {
         super.onCreate();
         instance = this;
 
+        // Configure Firestore offline persistence (required by spec)
+        configureFirestore();
+
         // Create notification channels once at app startup
         createNotificationChannels();
+    }
+
+    /**
+     * Configures Cloud Firestore with offline persistence and unlimited cache size.
+     *
+     * <p>Offline persistence lets the RecyclerView display documents instantly
+     * from the local cache while the Firestore server sync runs in the background.
+     * This is required by the project spec.
+     */
+    private void configureFirestore() {
+        try {
+            FirebaseFirestore db = FirebaseFirestore.getInstance();
+            FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
+                    .setLocalCacheSettings(
+                            PersistentCacheSettings.newBuilder()
+                                    .setSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+                                    .build()
+                    )
+                    .build();
+            db.setFirestoreSettings(settings);
+            Log.d("GhostDocsApp", "Firestore offline persistence enabled (unlimited cache).");
+        } catch (Exception e) {
+            // Settings can only be applied before Firestore is used for the first time.
+            // If the app was previously initialized without these settings, this is a no-op.
+            Log.w("GhostDocsApp", "Could not set Firestore settings (may already be initialised).", e);
+        }
     }
 
     /**

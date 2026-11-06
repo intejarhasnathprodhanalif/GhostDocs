@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  activity_vault.xml — Main Secure Vault Dashboard (stub for Step 1 fix)
-  Full RecyclerView implementation in Step 3.
+  activity_vault.xml — Main Secure Vault Dashboard
+  Full Step 3 implementation.
+  Root: ConstraintLayout (as required by spec).
+  Contains: custom toolbar, stats bar, RecyclerView, FAB, empty state.
 -->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -12,18 +14,167 @@
     android:background="@color/ghostDarkBg"
     tools:context=".activities.VaultActivity">
 
-    <TextView
-        android:id="@+id/tv_vault_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/vault_title"
-        android:textColor="@color/ghostOnSurface"
-        android:textSize="24sp"
-        android:textStyle="bold"
+    <!-- ── Custom Toolbar ────────────────────────────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/toolbar_vault"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:background="@color/ghostSurface"
+        android:paddingHorizontal="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Ghost icon -->
+        <TextView
+            android:id="@+id/tv_toolbar_icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:text="👻"
+            android:textSize="22sp" />
+
+        <!-- App name -->
+        <TextView
+            android:id="@+id/tv_toolbar_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@id/tv_toolbar_icon"
+            android:layout_marginStart="8dp"
+            android:text="@string/app_name"
+            android:textColor="@color/ghostOnSurface"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <!-- Sign-out button -->
+        <TextView
+            android:id="@+id/btn_sign_out"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="8dp"
+            android:padding="8dp"
+            android:text="⇥"
+            android:textColor="@color/ghostOnSurfaceMuted"
+            android:textSize="20sp"
+            android:contentDescription="Sign out" />
+
+        <!-- Settings button -->
+        <TextView
+            android:id="@+id/btn_open_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toStartOf="@id/btn_sign_out"
+            android:padding="8dp"
+            android:text="⚙"
+            android:textColor="@color/ghostOnSurfaceMuted"
+            android:textSize="20sp"
+            android:contentDescription="Settings" />
+
+    </RelativeLayout>
+
+    <!-- ── Stats Bar ──────────────────────────────────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/layout_stats"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:background="@color/ghostSurfaceVariant"
+        android:paddingHorizontal="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_vault">
+
+        <!-- Document count -->
+        <TextView
+            android:id="@+id/tv_doc_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:textColor="@color/ghostOnSurfaceMuted"
+            android:textSize="12sp"
+            tools:text="12 documents secured" />
+
+        <!-- Watcher status dot -->
+        <TextView
+            android:id="@+id/tv_watcher_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentEnd="true"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            tools:text="● Watcher: ON"
+            tools:textColor="@color/ghostSuccess" />
+
+    </RelativeLayout>
+
+    <!-- ── Main RecyclerView (Firestore-synced vault grid) ───────────────── -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_vault"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingBottom="80dp"
+        android:paddingTop="8dp"
+        android:paddingHorizontal="6dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/layout_stats"
+        tools:itemCount="6"
+        tools:listitem="@layout/item_document" />
+
+    <!-- ── Empty state (shown when vault has no documents) ───────────────── -->
+    <LinearLayout
+        android:id="@+id/layout_empty_state"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_stats"
+        tools:visibility="visible">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="👁"
+            android:textSize="56sp"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/vault_empty_state"
+            android:textColor="@color/ghostOnSurfaceMuted"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.4"
+            android:paddingHorizontal="40dp" />
+
+    </LinearLayout>
+
+    <!-- ── FAB: Start / Stop Watcher ─────────────────────────────────────── -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_watcher_toggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="24dp"
+        android:contentDescription="Toggle watcher"
+        android:src="@android:drawable/ic_media_play"
+        app:backgroundTint="@color/ghostPrimary"
+        app:tint="@color/ghostOnPrimary"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-
