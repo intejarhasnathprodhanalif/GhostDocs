@@ -4,6 +4,11 @@
 
 # ── Keep all GhostDocs domain models (Firestore needs reflection) ──────────
 -keep class com.ghostdocs.vault.model.** { *; }
+-keep class com.ghostdocs.vault.ocr.** { *; }
+-keep class com.ghostdocs.vault.classifier.** { *; }
+-keep class com.ghostdocs.vault.tasks.** { *; }
+-keep class com.ghostdocs.vault.security.** { *; }
+-keep class com.ghostdocs.vault.widget.** { *; }
 
 # ── Firebase ───────────────────────────────────────────────────────────────
 -keep class com.google.firebase.** { *; }
