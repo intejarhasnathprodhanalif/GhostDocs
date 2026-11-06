@@ -119,3 +119,4 @@ public class EncryptTask extends BaseVaultTask<EncryptTask.EncryptResult> {
         return false;
     }
 }
+

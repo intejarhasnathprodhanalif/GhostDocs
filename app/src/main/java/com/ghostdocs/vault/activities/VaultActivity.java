@@ -20,7 +20,12 @@ import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.adapter.VaultRecyclerAdapter;
 import com.ghostdocs.vault.model.DocumentModel;
 import com.ghostdocs.vault.service.WatcherService;
+import com.ghostdocs.vault.tasks.PdfGeneratorTask;
+import com.ghostdocs.vault.tasks.VaultExecutor;
+import com.ghostdocs.vault.util.PdfExportHelper;
 import com.ghostdocs.vault.util.PermissionHelper;
+
+import java.io.File;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -249,29 +254,94 @@ public class VaultActivity extends AppCompatActivity
     @Override
     public void onDocumentClick(DocumentModel document, int position) {
         Log.d(TAG, "Document tapped: " + document.getTitle());
-        // TODO (Step 8): Open PDF viewer / document detail screen
-        Toast.makeText(this,
-                "📄 " + document.getTitle() + "\n" + document.getFormattedDate(),
-                Toast.LENGTH_SHORT).show();
+
+        // If searchable PDF exists, open it directly in system viewer
+        if (document.getPdfPath() != null && !document.getPdfPath().isEmpty()) {
+            File pdfFile = new File(document.getPdfPath());
+            if (pdfFile.exists()) {
+                PdfExportHelper.openPdf(this, pdfFile);
+                return;
+            }
+        }
+
+        // Otherwise generate on-demand or show info
+        exportOrSharePdf(document);
     }
 
     /**
      * Long press — show contextual menu (share QR, delete, export PDF).
-     * Full implementation in Steps 7–8.
      */
     @Override
     public void onDocumentLongClick(DocumentModel document, int position) {
         Log.d(TAG, "Document long-pressed: " + document.getTitle());
         new AlertDialog.Builder(this)
                 .setTitle(document.getTitle())
-                .setItems(new String[]{"📱 Share QR", "📄 Export PDF", "🗑 Delete"},
+                .setItems(new String[]{"📱 Share QR", "📄 Open / Export PDF", "🗑 Delete"},
                         (dialog, which) -> {
                             switch (which) {
                                 case 0: Toast.makeText(this, "QR — coming in Step 9", Toast.LENGTH_SHORT).show(); break;
-                                case 1: Toast.makeText(this, "PDF — coming in Step 8", Toast.LENGTH_SHORT).show(); break;
+                                case 1: exportOrSharePdf(document); break;
                                 case 2: confirmDeleteDocument(document); break;
                             }
                         })
+                .show();
+    }
+
+    /**
+     * Exports or shares the searchable PDF.
+     */
+    private void exportOrSharePdf(DocumentModel document) {
+        // If file already exists on disk
+        if (document.getPdfPath() != null && !document.getPdfPath().isEmpty()) {
+            File existingPdf = new File(document.getPdfPath());
+            if (existingPdf.exists()) {
+                showPdfActionDialog(existingPdf, document.getTitle());
+                return;
+            }
+        }
+
+        // If PDF not generated yet, generate on-demand from encrypted file
+        if (document.getEncryptedPath() != null && !document.getEncryptedPath().isEmpty()) {
+            File encFile = new File(document.getEncryptedPath());
+            if (encFile.exists()) {
+                Toast.makeText(this, "Generating searchable PDF...", Toast.LENGTH_SHORT).show();
+
+                PdfGeneratorTask task = new PdfGeneratorTask(
+                        this,
+                        encFile,
+                        Collections.emptyList(),
+                        document.getDocId(),
+                        document.getTitle(),
+                        new BaseVaultTask.TaskCallback<File>() {
+                            @Override
+                            public void onTaskSuccess(File pdfResult) {
+                                document.setPdfPath(pdfResult.getAbsolutePath());
+                                showPdfActionDialog(pdfResult, document.getTitle());
+                            }
+
+                            @Override
+                            public void onTaskError(Throwable error) {
+                                Toast.makeText(VaultActivity.this,
+                                        "PDF generation failed: " + error.getMessage(),
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                );
+                VaultExecutor.getInstance().execute(task);
+                return;
+            }
+        }
+
+        Toast.makeText(this, "No encrypted data found to export.", Toast.LENGTH_SHORT).show();
+    }
+
+    private void showPdfActionDialog(File pdfFile, String title) {
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage("Searchable PDF ready. What would you like to do?")
+                .setPositiveButton("Open PDF", (d, w) -> PdfExportHelper.openPdf(this, pdfFile))
+                .setNeutralButton("Share", (d, w) -> PdfExportHelper.sharePdf(this, pdfFile, title))
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 

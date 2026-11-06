@@ -192,9 +192,28 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    /** Stub for PDF export — implemented in Step 8. */
+    /** Exports or views generated vault PDFs. */
     private void exportPdf() {
-        Toast.makeText(this, "PDF export coming in Step 8 🔜", Toast.LENGTH_SHORT).show();
+        java.io.File exportDir = new java.io.File(getExternalFilesDir(null), "GhostDocs/exports");
+        if (exportDir.exists() && exportDir.isDirectory()) {
+            java.io.File[] files = exportDir.listFiles((dir, name) -> name.endsWith(".pdf"));
+            int count = files != null ? files.length : 0;
+            if (count > 0) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Exported PDFs")
+                        .setMessage(count + " searchable PDF(s) are stored in your secure export directory:\n\n"
+                                + exportDir.getAbsolutePath())
+                        .setPositiveButton("Open Latest", (d, w) -> {
+                            if (files != null && files.length > 0) {
+                                com.ghostdocs.vault.util.PdfExportHelper.openPdf(this, files[files.length - 1]);
+                            }
+                        })
+                        .setNegativeButton("Close", null)
+                        .show();
+                return;
+            }
+        }
+        Toast.makeText(this, "No exported PDFs yet. Tap any document in Vault to export.", Toast.LENGTH_LONG).show();
     }
 
     /** Shows a confirmation dialog before clearing the vault. */

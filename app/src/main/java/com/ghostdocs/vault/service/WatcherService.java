@@ -23,8 +23,11 @@ import com.ghostdocs.vault.observer.MediaContentObserver;
 import com.ghostdocs.vault.tasks.CropTask;
 import com.ghostdocs.vault.tasks.EncryptTask;
 import com.ghostdocs.vault.tasks.OcrTask;
+import com.ghostdocs.vault.tasks.PdfGeneratorTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
 import com.ghostdocs.vault.util.NotificationHelper;
+
+import java.io.File;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
@@ -216,7 +219,28 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             Log.i(TAG, "Encryption complete: " + encryptResult.getEncryptedPath()
                     + " | Original deleted: " + encryptResult.isOriginalDeleted());
 
-            // Step 4: Push structured metadata to Cloud Firestore if user is authenticated
+            // Step 4: Generate Searchable PDF with transparent OCR text overlay
+            updateForegroundNotification("Generating searchable PDF...");
+            String pdfPath = "";
+            try {
+                PdfGeneratorTask pdfTask = new PdfGeneratorTask(
+                        this,
+                        processedBitmap,
+                        ocrResult.getBoundingBoxes(),
+                        docId,
+                        title,
+                        null
+                );
+                File pdfFile = pdfTask.doInBackground();
+                if (pdfFile != null && pdfFile.exists()) {
+                    pdfPath = pdfFile.getAbsolutePath();
+                    Log.i(TAG, "Searchable PDF created in pipeline: " + pdfPath);
+                }
+            } catch (Exception pdfEx) {
+                Log.w(TAG, "Could not generate PDF during auto-pipeline", pdfEx);
+            }
+
+            // Step 5: Push structured metadata to Cloud Firestore if user is authenticated
             FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
             if (currentUser != null) {
                 long timestamp = System.currentTimeMillis();
@@ -227,7 +251,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                         fullOcrText,
                         encryptResult.getEncryptedPath(), // Verified AES encrypted path on device
                         imageUri.toString(),              // Reference for thumbnail
-                        "",                               // PDF path (Step 8)
+                        pdfPath,                          // Verified searchable PDF path
                         timestamp,
                         tags,
                         docType,
@@ -243,7 +267,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                         .addOnSuccessListener(unused -> Log.d(TAG, "Metadata pushed to Firestore: " + docId))
                         .addOnFailureListener(e -> Log.e(TAG, "Failed pushing metadata to Firestore", e));
 
-                // Step 5: Trigger local notification
+                // Step 6: Trigger local notification
                 NotificationHelper.showDocumentSecuredNotification(this, title, docType);
             }
 
