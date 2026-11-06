@@ -89,3 +89,4 @@ public class CropTask extends BaseVaultTask<Bitmap> {
         }
     }
 }
+

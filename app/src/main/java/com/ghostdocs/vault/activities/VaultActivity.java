@@ -330,6 +330,15 @@ public class VaultActivity extends AppCompatActivity
         FirebaseUser user = firebaseAuth.getCurrentUser();
         if (user == null || document.getDocId() == null) return;
 
+        // Clean up encrypted file on device
+        if (document.getEncryptedPath() != null && !document.getEncryptedPath().isEmpty()) {
+            java.io.File encFile = new java.io.File(document.getEncryptedPath());
+            if (encFile.exists()) {
+                boolean deleted = encFile.delete();
+                Log.d(TAG, "Local encrypted file deleted from disk: " + deleted);
+            }
+        }
+
         firestore.collection("users")
                 .document(user.getUid())
                 .collection("documents")
@@ -337,7 +346,7 @@ public class VaultActivity extends AppCompatActivity
                 .delete()
                 .addOnSuccessListener(unused -> {
                     Log.d(TAG, "Document deleted from Firestore: " + document.getDocId());
-                    Toast.makeText(this, "Document deleted.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Document and encrypted file deleted.", Toast.LENGTH_SHORT).show();
                     // The SnapshotListener will automatically refresh the RecyclerView
                 })
                 .addOnFailureListener(e -> {

@@ -266,3 +266,4 @@ public final class OpenCvCropper {
         return destination;
     }
 }
+

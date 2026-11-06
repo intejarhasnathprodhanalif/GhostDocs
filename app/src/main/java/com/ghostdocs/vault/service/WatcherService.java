@@ -21,6 +21,7 @@ import com.ghostdocs.vault.classifier.RegexClassifierEngine;
 import com.ghostdocs.vault.model.DocumentModel;
 import com.ghostdocs.vault.observer.MediaContentObserver;
 import com.ghostdocs.vault.tasks.CropTask;
+import com.ghostdocs.vault.tasks.EncryptTask;
 import com.ghostdocs.vault.tasks.OcrTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
 import com.ghostdocs.vault.util.NotificationHelper;
@@ -203,19 +204,30 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
 
             Log.i(TAG, "Pipeline OCR complete -> Category: " + docType + ", Title: " + title);
 
-            // Step 2: Push structured metadata to Cloud Firestore if user is authenticated
+            // Step 3: Hardware AES-256-GCM Encryption & Scoped Storage Deletion
+            updateForegroundNotification("Encrypting and securing document...");
+            String docId = UUID.randomUUID().toString();
+            android.content.SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
+            boolean autoDeleteOriginal = prefs.getBoolean("auto_delete_original", true);
+
+            EncryptTask encryptTask = new EncryptTask(this, processedBitmap, imageUri, docId, autoDeleteOriginal, null);
+            EncryptTask.EncryptResult encryptResult = encryptTask.doInBackground();
+
+            Log.i(TAG, "Encryption complete: " + encryptResult.getEncryptedPath()
+                    + " | Original deleted: " + encryptResult.isOriginalDeleted());
+
+            // Step 4: Push structured metadata to Cloud Firestore if user is authenticated
             FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
             if (currentUser != null) {
-                String docId = UUID.randomUUID().toString();
                 long timestamp = System.currentTimeMillis();
 
                 DocumentModel docModel = new DocumentModel(
                         docId,
                         title,
                         fullOcrText,
-                        "", // Encrypted local path (Step 7)
-                        imageUri.toString(), // Temporary thumbnail reference until Step 7
-                        "", // PDF path (Step 8)
+                        encryptResult.getEncryptedPath(), // Verified AES encrypted path on device
+                        imageUri.toString(),              // Reference for thumbnail
+                        "",                               // PDF path (Step 8)
                         timestamp,
                         tags,
                         docType,
@@ -231,7 +243,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                         .addOnSuccessListener(unused -> Log.d(TAG, "Metadata pushed to Firestore: " + docId))
                         .addOnFailureListener(e -> Log.e(TAG, "Failed pushing metadata to Firestore", e));
 
-                // Step 3: Trigger local notification
+                // Step 5: Trigger local notification
                 NotificationHelper.showDocumentSecuredNotification(this, title, docType);
             }
 
