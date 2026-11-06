@@ -58,7 +58,7 @@ public class CropTask extends BaseVaultTask<Bitmap> {
     }
 
     @Override
-    protected Bitmap doInBackground() throws Exception {
+    public Bitmap doInBackground() throws Exception {
         Log.d(TAG, "Starting OpenCV CropTask on background worker thread...");
 
         Bitmap inputBitmap = sourceBitmap;

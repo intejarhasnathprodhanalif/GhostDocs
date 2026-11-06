@@ -192,12 +192,12 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             // Step 1: Smart Crop & Flatten via OpenCV
             updateForegroundNotification("Optimizing document perspective...");
             CropTask cropTask = new CropTask(this, imageUri, null);
-            Bitmap processedBitmap = cropTask.doInBackground();
+            Bitmap processedBitmap = cropTask.executeDirectly();
 
             // Step 2: Execute on-device ML Kit OCR Task on de-skewed bitmap
             updateForegroundNotification("Reading document text...");
             OcrTask ocrTask = new OcrTask(this, processedBitmap, displayName, null);
-            OcrTask.OcrResult ocrResult = ocrTask.doInBackground();
+            OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
 
             RegexClassifierEngine.ClassificationResult classification = ocrResult.getClassification();
             String docType = classification.getDocType();
@@ -214,7 +214,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             boolean autoDeleteOriginal = prefs.getBoolean("auto_delete_original", true);
 
             EncryptTask encryptTask = new EncryptTask(this, processedBitmap, imageUri, docId, autoDeleteOriginal, null);
-            EncryptTask.EncryptResult encryptResult = encryptTask.doInBackground();
+            EncryptTask.EncryptResult encryptResult = encryptTask.executeDirectly();
 
             Log.i(TAG, "Encryption complete: " + encryptResult.getEncryptedPath()
                     + " | Original deleted: " + encryptResult.isOriginalDeleted());
@@ -231,7 +231,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                         title,
                         null
                 );
-                File pdfFile = pdfTask.doInBackground();
+                File pdfFile = pdfTask.executeDirectly();
                 if (pdfFile != null && pdfFile.exists()) {
                     pdfPath = pdfFile.getAbsolutePath();
                     Log.i(TAG, "Searchable PDF created in pipeline: " + pdfPath);

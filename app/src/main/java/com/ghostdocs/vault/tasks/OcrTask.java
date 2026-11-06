@@ -1,6 +1,7 @@
 package com.ghostdocs.vault.tasks;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.util.Log;
 
@@ -93,7 +94,7 @@ public class OcrTask extends BaseVaultTask<OcrTask.OcrResult> {
     }
 
     @Override
-    protected OcrResult doInBackground() throws Exception {
+    public OcrResult doInBackground() throws Exception {
         Log.d(TAG, "Starting on-device ML Kit OCR for URI: " + imageUri);
 
         // 1. Build ML Kit InputImage from Bitmap or file path

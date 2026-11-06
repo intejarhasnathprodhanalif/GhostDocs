@@ -72,7 +72,7 @@ public class EncryptTask extends BaseVaultTask<EncryptTask.EncryptResult> {
     }
 
     @Override
-    protected EncryptResult doInBackground() throws Exception {
+    public EncryptResult doInBackground() throws Exception {
         Log.d(TAG, "Starting AES-256-GCM encryption for document: " + docId);
 
         // 1. Encrypt bitmap into internal vault directory

@@ -87,7 +87,7 @@ public class PdfGeneratorTask extends BaseVaultTask<File> {
     }
 
     @Override
-    protected File doInBackground() throws Exception {
+    public File doInBackground() throws Exception {
         Log.d(TAG, "Generating searchable PDF for: " + docTitle + " (ID: " + docId + ")");
 
         // 1. Resolve source bitmap (either in-memory or decrypted from .enc file)

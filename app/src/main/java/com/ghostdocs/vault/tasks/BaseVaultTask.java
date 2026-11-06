@@ -80,13 +80,24 @@ public abstract class BaseVaultTask<T> implements Runnable {
     }
 
     /**
+     * Executes the task directly and returns the result.
+     * Safe to invoke when already executing on a background worker thread.
+     *
+     * @return Output of type {@code T}.
+     * @throws Exception If computation fails.
+     */
+    public final T executeDirectly() throws Exception {
+        return doInBackground();
+    }
+
+    /**
      * Heavy background computation. Must be implemented by concrete subclasses.
-     * Executes entirely on a worker thread provided by {@link VaultExecutor}.
+     * Executes on a worker thread provided by {@link VaultExecutor}.
      *
      * @return Output of type {@code T}.
      * @throws Exception If any step in processing fails.
      */
-    protected abstract T doInBackground() throws Exception;
+    public abstract T doInBackground() throws Exception;
 
     // ── Safe Main-Thread Callback Dispatch ───────────────────────────────────
     private void dispatchSuccess(final T result) {
