@@ -2,12 +2,15 @@ package com.ghostdocs.vault.activities;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -43,6 +46,9 @@ import com.ghostdocs.vault.widget.VaultWidgetProvider;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
@@ -354,22 +360,28 @@ public class VaultActivity extends AppCompatActivity
     }
 
     /**
-     * Long press — show contextual menu (rename, share QR, export PDF, delete).
+     * Long press — show contextual menu (rename, share QR, export JPG, export PDF, delete).
      */
     @Override
     public void onDocumentLongClick(DocumentModel document, int position) {
         Log.d(TAG, "Document long-pressed: " + document.getTitle());
         new AlertDialog.Builder(this)
                 .setTitle(document.getTitle())
-                .setItems(new String[]{"✏️ Rename Document", "📱 Share QR (Air-Gapped)", "📄 Open / Export PDF", "🗑 Delete"},
-                        (dialog, which) -> {
-                            switch (which) {
-                                case 0: promptRenameDocument(document); break;
-                                case 1: showQrShareDialog(document); break;
-                                case 2: exportOrSharePdf(document); break;
-                                case 3: confirmDeleteDocument(document); break;
-                            }
-                        })
+                .setItems(new String[]{
+                        "✏️ Rename Document",
+                        "📱 Share QR (Air-Gapped)",
+                        "🖼️ Export / Share JPG",
+                        "📄 Open / Export PDF",
+                        "🗑 Delete"
+                }, (dialog, which) -> {
+                    switch (which) {
+                        case 0: promptRenameDocument(document); break;
+                        case 1: showQrShareDialog(document); break;
+                        case 2: exportOrShareJpg(document); break;
+                        case 3: exportOrSharePdf(document); break;
+                        case 4: confirmDeleteDocument(document); break;
+                    }
+                })
                 .show();
     }
 
@@ -519,8 +531,8 @@ public class VaultActivity extends AppCompatActivity
         btnModeCloud.setOnClickListener(v -> showCloudQr.run());
         btnModeAirgap.setOnClickListener(v -> showAirGappedQr.run());
 
-        // Default: Open in Cloud Picture mode
-        showCloudQr.run();
+        // Default: Open in Air-Gapped Verification Card mode (100% offline, free, zero credit card)
+        showAirGappedQr.run();
 
         dialog.show();
     }
@@ -690,6 +702,128 @@ public class VaultActivity extends AppCompatActivity
                 .setNeutralButton("Share", (d, w) -> PdfExportHelper.sharePdf(this, pdfFile, title))
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // JPG Export & Gallery Save
+    // ════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Exports the document as a high-resolution JPG image, allowing the user to share it
+     * via Quick Share/WhatsApp/Bluetooth or save it directly to the device Gallery.
+     */
+    private void exportOrShareJpg(DocumentModel document) {
+        if (document.getEncryptedPath() == null || document.getEncryptedPath().isEmpty()) {
+            Toast.makeText(this, "No encrypted data found to export.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        File encFile = new File(document.getEncryptedPath());
+        if (!encFile.exists()) {
+            Toast.makeText(this, "Encrypted file not found on disk.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Export as JPG Image")
+                .setMessage("Export \"" + document.getTitle() + "\" as a JPG image:")
+                .setPositiveButton("Share JPG", (dialog, which) -> shareJpgImage(document, encFile))
+                .setNeutralButton("Save to Gallery", (dialog, which) -> saveJpgToGallery(document, encFile))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void shareJpgImage(DocumentModel document, File encFile) {
+        Toast.makeText(this, "Preparing JPG image...", Toast.LENGTH_SHORT).show();
+        VaultExecutor.getInstance().execute(() -> {
+            try {
+                Bitmap bmp = AesEncryptionHelper.getInstance().decryptFileToBitmap(encFile);
+                if (bmp == null) throw new IOException("Decryption failed.");
+
+                File exportDir = new File(getCacheDir(), "shared_jpg");
+                exportDir.mkdirs();
+                String safeName = sanitizeFilename(document.getTitle()) + ".jpg";
+                File jpgFile = new File(exportDir, safeName);
+
+                try (FileOutputStream fos = new FileOutputStream(jpgFile)) {
+                    bmp.compress(Bitmap.CompressFormat.JPEG, 95, fos);
+                    fos.flush();
+                }
+
+                runOnUiThread(() -> {
+                    try {
+                        Uri contentUri = PdfExportHelper.getSecureUriForFile(this, jpgFile);
+                        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                        shareIntent.setType("image/jpeg");
+                        shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+                        shareIntent.putExtra(Intent.EXTRA_SUBJECT, document.getTitle());
+                        shareIntent.putExtra(Intent.EXTRA_TEXT, "Secured with GhostDocs: " + document.getTitle());
+                        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        startActivity(Intent.createChooser(shareIntent, "Share Image (Quick Share / Apps)"));
+                    } catch (Exception ex) {
+                        Log.e(TAG, "Failed to share JPG", ex);
+                        Toast.makeText(VaultActivity.this, "Could not share JPG: " + ex.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error decrypting JPG for share", e);
+                runOnUiThread(() -> Toast.makeText(VaultActivity.this,
+                        "Failed to export JPG: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
+
+    private void saveJpgToGallery(DocumentModel document, File encFile) {
+        Toast.makeText(this, "Saving JPG to Gallery...", Toast.LENGTH_SHORT).show();
+        VaultExecutor.getInstance().execute(() -> {
+            try {
+                Bitmap bmp = AesEncryptionHelper.getInstance().decryptFileToBitmap(encFile);
+                if (bmp == null) throw new IOException("Decryption failed.");
+
+                String safeName = sanitizeFilename(document.getTitle()) + "_" + System.currentTimeMillis() + ".jpg";
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    ContentValues values = new ContentValues();
+                    values.put(MediaStore.Images.Media.DISPLAY_NAME, safeName);
+                    values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                    values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/GhostDocs");
+                    values.put(MediaStore.Images.Media.IS_PENDING, 1);
+
+                    Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                    if (uri != null) {
+                        try (OutputStream out = getContentResolver().openOutputStream(uri)) {
+                            bmp.compress(Bitmap.CompressFormat.JPEG, 95, out);
+                        }
+                        values.clear();
+                        values.put(MediaStore.Images.Media.IS_PENDING, 0);
+                        getContentResolver().update(uri, values, null, null);
+                    }
+                } else {
+                    File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+                    File ghostDir = new File(picturesDir, "GhostDocs");
+                    ghostDir.mkdirs();
+                    File outFile = new File(ghostDir, safeName);
+                    try (FileOutputStream fos = new FileOutputStream(outFile)) {
+                        bmp.compress(Bitmap.CompressFormat.JPEG, 95, fos);
+                        fos.flush();
+                    }
+                }
+
+                runOnUiThread(() -> Toast.makeText(VaultActivity.this,
+                        "Saved to Gallery in Pictures/GhostDocs!", Toast.LENGTH_LONG).show());
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error saving JPG to Gallery", e);
+                runOnUiThread(() -> Toast.makeText(VaultActivity.this,
+                        "Failed to save to Gallery: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
+
+    private String sanitizeFilename(String name) {
+        if (name == null || name.trim().isEmpty()) return "GhostDocs_Document";
+        return name.replaceAll("[^a-zA-Z0-9.-]", "_");
     }
 
     // ════════════════════════════════════════════════════════════════════════

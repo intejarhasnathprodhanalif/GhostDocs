@@ -224,6 +224,7 @@ public class VaultRecyclerAdapter
                 case DocumentModel.TYPE_RECEIPT:      return Color.parseColor("#00E676"); // green
                 case DocumentModel.TYPE_PRESCRIPTION: return Color.parseColor("#FFD600"); // amber
                 case DocumentModel.TYPE_PASSWORD:     return Color.parseColor("#FF4C6A"); // red
+                case DocumentModel.TYPE_STUDY_NOTE:   return Color.parseColor("#7C4DFF"); // purple
                 default:                              return Color.parseColor("#9E9E9E"); // grey
             }
         }

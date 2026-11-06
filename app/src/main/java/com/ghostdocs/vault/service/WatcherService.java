@@ -207,10 +207,23 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
 
             Log.i(TAG, "Pipeline OCR complete -> Category: " + docType + ", Title: " + title);
 
+            // Step 2b: Exclude class lecture & notebook study notes from vault security if configured
+            android.content.SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
+            boolean excludeStudyNotes = prefs.getBoolean("exclude_study_notes", true);
+
+            if (excludeStudyNotes && (DocumentModel.TYPE_STUDY_NOTE.equals(docType)
+                    || RegexClassifierEngine.isAcademicOrStudyNote(fullOcrText))) {
+                Log.i(TAG, "Excluding class lecture / study note from vault security: " + displayName);
+                updateForegroundNotification("Class notes detected — preserved safely in Gallery.");
+                if (processedBitmap != null && !processedBitmap.isRecycled()) {
+                    processedBitmap.recycle();
+                }
+                return;
+            }
+
             // Step 3: Hardware AES-256-GCM Encryption & Scoped Storage Deletion
             updateForegroundNotification("Encrypting and securing document...");
             String docId = UUID.randomUUID().toString();
-            android.content.SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
             boolean autoDeleteOriginal = prefs.getBoolean("auto_delete_original", true);
 
             EncryptTask encryptTask = new EncryptTask(this, processedBitmap, imageUri, docId, autoDeleteOriginal, null);

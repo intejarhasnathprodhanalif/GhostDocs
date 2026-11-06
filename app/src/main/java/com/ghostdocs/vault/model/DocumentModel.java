@@ -39,6 +39,7 @@ public class DocumentModel {
     public static final String TYPE_RECEIPT      = "RECEIPT";
     public static final String TYPE_PRESCRIPTION = "PRESCRIPTION";
     public static final String TYPE_PASSWORD     = "PASSWORD";
+    public static final String TYPE_STUDY_NOTE   = "STUDY_NOTE";
     public static final String TYPE_OTHER        = "OTHER";
 
     // ── Firestore Field Name Constants (avoid magic strings) ─────────────────

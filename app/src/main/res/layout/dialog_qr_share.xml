@@ -53,7 +53,7 @@
             android:layout_toStartOf="@id/view_mode_divider"
             android:gravity="center"
             android:text="🌐 Cloud Picture (Browser)"
-            android:textColor="@color/ghostPrimary"
+            android:textColor="@color/ghostOnSurfaceMuted"
             android:textSize="12sp"
             android:textStyle="bold" />
 
@@ -72,7 +72,7 @@
             android:layout_toEndOf="@id/view_mode_divider"
             android:gravity="center"
             android:text="📱 Air-Gapped Card"
-            android:textColor="@color/ghostOnSurfaceMuted"
+            android:textColor="@color/ghostPrimary"
             android:textSize="12sp"
             android:textStyle="bold" />
 

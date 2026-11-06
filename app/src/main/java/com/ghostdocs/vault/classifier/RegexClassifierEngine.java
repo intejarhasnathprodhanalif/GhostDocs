@@ -70,6 +70,7 @@ public class RegexClassifierEngine {
         rules.add(new TransactionRule());
         rules.add(new PasswordRule());
         rules.add(new PrescriptionRule());
+        rules.add(new StudyNoteRule());
     }
 
     /**
@@ -262,6 +263,39 @@ public class RegexClassifierEngine {
         }
     }
 
+    /**
+     * Study / Lecture Note Rule: Matches notebook pages, class lectures, university slides,
+     * homework assignments, academic diagrams, exercises, definitions.
+     */
+    private static class StudyNoteRule implements DocumentRule {
+        private static final Pattern STUDY_PATTERN = Pattern.compile(
+                "(?i)\\b(lecture|homework|assignment|chapter|syllabus|theorem|definition|" +
+                "algorithm|formula|equation|exercise|professor|semester|course|class\\s*notes|" +
+                "physics|chemistry|biology|calculus|mathematics|discrete|exam|quiz|" +
+                "page\\s*\\d+|handout|slide\\s*\\d+|problem\\s*set|solution|faculty|notebook)\\b"
+        );
+
+        @Override
+        public boolean matches(@NonNull String text) {
+            return STUDY_PATTERN.matcher(text).find();
+        }
+
+        @NonNull
+        @Override
+        public String getDocType() {
+            return DocumentModel.TYPE_STUDY_NOTE;
+        }
+
+        @NonNull
+        @Override
+        public List<String> extractTags(@NonNull String text) {
+            List<String> tags = new ArrayList<>();
+            tags.add("STUDY_NOTE");
+            tags.add("Lecture");
+            return tags;
+        }
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     // Smart Contextual Titling Helpers
     // ════════════════════════════════════════════════════════════════════════
@@ -308,6 +342,13 @@ public class RegexClassifierEngine {
             }
             case DocumentModel.TYPE_PASSWORD: {
                 return "Credentials / Secret Note";
+            }
+            case DocumentModel.TYPE_STUDY_NOTE: {
+                String subjectOrTopic = extractStudySubjectOrTopic(ocrText);
+                if (subjectOrTopic != null) {
+                    return "Lecture Note - " + subjectOrTopic;
+                }
+                return "Class Lecture / Study Note";
             }
             default: {
                 // Try to grab the first clean, meaningful line of text
@@ -398,6 +439,32 @@ public class RegexClassifierEngine {
                 return trimmed.substring(0, 36).trim() + "...";
             }
             return trimmed;
+        }
+        return null;
+    }
+
+    /**
+     * Checks whether the OCR text indicates academic notes, lectures, or study materials.
+     */
+    public static boolean isAcademicOrStudyNote(@NonNull String text) {
+        if (text == null || text.trim().isEmpty()) return false;
+        Pattern pattern = Pattern.compile(
+                "(?i)\\b(lecture|homework|assignment|chapter|syllabus|theorem|definition|" +
+                "algorithm|formula|equation|exercise|professor|semester|course|class\\s*notes|" +
+                "physics|chemistry|biology|calculus|mathematics|discrete|exam|quiz|" +
+                "page\\s*\\d+|handout|slide\\s*\\d+|problem\\s*set|solution|faculty|notebook)\\b"
+        );
+        return pattern.matcher(text).find();
+    }
+
+    private static String extractStudySubjectOrTopic(String text) {
+        if (text == null) return null;
+        Pattern subjectPattern = Pattern.compile(
+                "(?i)\\b(Physics|Chemistry|Biology|Calculus|Mathematics|Algorithm|Discrete|Economics|Accounting|English|Computer Science|Statistics)\\b"
+        );
+        Matcher matcher = subjectPattern.matcher(text);
+        if (matcher.find()) {
+            return matcher.group(1);
         }
         return null;
     }
