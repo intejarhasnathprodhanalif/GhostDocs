@@ -44,6 +44,7 @@ import com.ghostdocs.vault.widget.VaultWidgetProvider;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -559,7 +560,18 @@ public class VaultActivity extends AppCompatActivity
                 // 3. Upload to Firebase Storage
                 FirebaseUser user = firebaseAuth.getCurrentUser();
                 String uid = user != null ? user.getUid() : "anonymous";
-                StorageReference storageRef = FirebaseStorage.getInstance()
+
+                // Explicitly target the configured storage bucket (e.g. ghostdocs-57c78.firebasestorage.app)
+                String bucket = FirebaseApp.getInstance().getOptions().getStorageBucket();
+                FirebaseStorage storage;
+                if (bucket != null && !bucket.isEmpty()) {
+                    String gsUrl = bucket.startsWith("gs://") ? bucket : "gs://" + bucket;
+                    storage = FirebaseStorage.getInstance(gsUrl);
+                } else {
+                    storage = FirebaseStorage.getInstance();
+                }
+
+                StorageReference storageRef = storage
                         .getReference()
                         .child("shares")
                         .child(uid)
@@ -600,17 +612,24 @@ public class VaultActivity extends AppCompatActivity
                                 });
                             })
                             .addOnFailureListener(e -> {
-                                Log.w(TAG, "Firebase Storage upload failed: " + e.getMessage());
+                                String errorMsg = e != null && e.getMessage() != null ? e.getMessage() : "Unknown storage error";
+                                Log.w(TAG, "Firebase Storage upload failed: " + errorMsg, e);
                                 Toast.makeText(VaultActivity.this,
-                                        "Cloud upload unavailable. Switching to Air-Gapped card.",
+                                        "Storage error: " + errorMsg + "\nCheck Firebase Console Storage setup.",
                                         Toast.LENGTH_LONG).show();
                                 fallbackToAirGapped.run();
                             });
                 });
 
             } catch (Exception ex) {
-                Log.e(TAG, "Error preparing image for cloud QR share", ex);
-                runOnUiThread(fallbackToAirGapped);
+                String errorMsg = ex != null && ex.getMessage() != null ? ex.getMessage() : "Internal error";
+                Log.e(TAG, "Error preparing image for cloud QR share: " + errorMsg, ex);
+                runOnUiThread(() -> {
+                    Toast.makeText(VaultActivity.this,
+                            "Cloud share error: " + errorMsg,
+                            Toast.LENGTH_LONG).show();
+                    fallbackToAirGapped.run();
+                });
             }
         });
     }
