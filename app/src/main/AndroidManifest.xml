@@ -120,6 +120,15 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
+        <!--
+            SecurePromptActivity: Interactive confirmation prompt asking the user
+            whether to secure a newly captured photo/screenshot or keep it in the gallery.
+        -->
+        <activity
+            android:name=".activities.SecurePromptActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
         <!-- ── SERVICES ────────────────────────────────────────────────── -->
 
         <!--

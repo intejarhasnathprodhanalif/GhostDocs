@@ -43,19 +43,21 @@ public class SettingsActivity extends AppCompatActivity {
     private static final String PREFS_NAME    = "GhostDocsPrefs";
 
     // SharedPreferences keys
-    private static final String PREF_AUTO_START     = "auto_start_watcher";
-    private static final String PREF_AUTO_DELETE    = "auto_delete_original";
-    private static final String PREF_EXCLUDE_NOTES  = "exclude_study_notes";
+    private static final String PREF_AUTO_START         = "auto_start_watcher";
+    private static final String PREF_AUTO_DELETE        = "auto_delete_original";
+    private static final String PREF_CONFIRM_SECURE     = "confirm_before_secure";
+    private static final String PREF_EXCLUDE_NOTES      = "exclude_study_notes";
 
     // ── Settings item indices (matches the list order) ───────────────────────
     private static final int IDX_AUTO_START     = 0;
     private static final int IDX_AUTO_DELETE    = 1;
-    private static final int IDX_EXCLUDE_NOTES  = 2;
-    private static final int IDX_PERMISSIONS    = 3;
-    private static final int IDX_EXPORT_PDF     = 4;
-    private static final int IDX_CLEAR_VAULT    = 5;
-    private static final int IDX_ABOUT          = 6;
-    private static final int IDX_SIGN_OUT       = 7;
+    private static final int IDX_CONFIRM_SECURE = 2;
+    private static final int IDX_EXCLUDE_NOTES  = 3;
+    private static final int IDX_PERMISSIONS    = 4;
+    private static final int IDX_EXPORT_PDF     = 5;
+    private static final int IDX_CLEAR_VAULT    = 6;
+    private static final int IDX_ABOUT          = 7;
+    private static final int IDX_SIGN_OUT       = 8;
 
     // ── Views ────────────────────────────────────────────────────────────────
     private ListView        lvSettings;
@@ -99,9 +101,10 @@ public class SettingsActivity extends AppCompatActivity {
     private void buildSettingsList() {
         settingsItems = new ArrayList<>();
 
-        boolean autoStart    = prefs.getBoolean(PREF_AUTO_START,    true);
-        boolean autoDelete   = prefs.getBoolean(PREF_AUTO_DELETE,   true);
-        boolean excludeNotes = prefs.getBoolean(PREF_EXCLUDE_NOTES, true);
+        boolean autoStart     = prefs.getBoolean(PREF_AUTO_START,     true);
+        boolean autoDelete    = prefs.getBoolean(PREF_AUTO_DELETE,    true);
+        boolean confirmSecure = prefs.getBoolean(PREF_CONFIRM_SECURE, true);
+        boolean excludeNotes  = prefs.getBoolean(PREF_EXCLUDE_NOTES,  true);
 
         settingsItems.add(new LogListAdapter.LogItem(                               // 0
                 getString(R.string.settings_auto_start),
@@ -110,18 +113,21 @@ public class SettingsActivity extends AppCompatActivity {
                 getString(R.string.settings_delete_original),
                 autoDelete ? "ON" : "OFF"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 2
+                "Ask Before Securing (Prompt on Capture)",
+                confirmSecure ? "ON (Prompt First)" : "OFF (Auto-Vault)"));
+        settingsItems.add(new LogListAdapter.LogItem(                               // 3
                 "Exclude Class Notes & Lecture Photos",
                 excludeNotes ? "ON (Saved in Gallery)" : "OFF"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 3
+        settingsItems.add(new LogListAdapter.LogItem(                               // 4
                 "Storage Permissions",
                 PermissionHelper.hasAllRequiredPermissions(this) ? "✓ Granted" : "⚠ Required"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 4
-                getString(R.string.settings_export_pdf)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 5
-                getString(R.string.settings_clear_vault)));
+                getString(R.string.settings_export_pdf)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 6
-                getString(R.string.settings_about)));
+                getString(R.string.settings_clear_vault)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 7
+                getString(R.string.settings_about)));
+        settingsItems.add(new LogListAdapter.LogItem(                               // 8
                 "Sign Out", "→"));
     }
 
@@ -129,7 +135,7 @@ public class SettingsActivity extends AppCompatActivity {
      * Attaches the adapter and item-click listener to the ListView.
      *
      * <p>The click dispatcher demonstrates Polymorphism — the same
-     * {@code onItemClick} handles 7 different setting behaviours,
+     * {@code onItemClick} handles 8 different setting behaviours,
      * resolved at runtime by {@code position}.
      */
     private void setupListView() {
@@ -151,14 +157,15 @@ public class SettingsActivity extends AppCompatActivity {
      */
     private void handleSettingClick(int position) {
         switch (position) {
-            case IDX_AUTO_START:    toggleAutoStart();    break;
-            case IDX_AUTO_DELETE:   toggleAutoDelete();   break;
-            case IDX_EXCLUDE_NOTES: toggleExcludeNotes(); break;
-            case IDX_PERMISSIONS:   openPermissions();    break;
-            case IDX_EXPORT_PDF:    exportPdf();          break;
-            case IDX_CLEAR_VAULT:   confirmClearVault();  break;
-            case IDX_ABOUT:         showAbout();           break;
-            case IDX_SIGN_OUT:      signOut();             break;
+            case IDX_AUTO_START:     toggleAutoStart();     break;
+            case IDX_AUTO_DELETE:    toggleAutoDelete();    break;
+            case IDX_CONFIRM_SECURE: toggleConfirmSecure(); break;
+            case IDX_EXCLUDE_NOTES:  toggleExcludeNotes();  break;
+            case IDX_PERMISSIONS:    openPermissions();     break;
+            case IDX_EXPORT_PDF:     exportPdf();           break;
+            case IDX_CLEAR_VAULT:    confirmClearVault();   break;
+            case IDX_ABOUT:          showAbout();            break;
+            case IDX_SIGN_OUT:       signOut();              break;
         }
     }
 
@@ -187,6 +194,18 @@ public class SettingsActivity extends AppCompatActivity {
         settingsAdapter.notifyDataSetChanged();
         Toast.makeText(this,
                 "Auto-delete " + (newVal ? "enabled" : "disabled"),
+                Toast.LENGTH_SHORT).show();
+    }
+
+    /** Toggles the "Ask before securing" confirmation prompt setting. */
+    private void toggleConfirmSecure() {
+        boolean current = prefs.getBoolean(PREF_CONFIRM_SECURE, true);
+        boolean newVal  = !current;
+        prefs.edit().putBoolean(PREF_CONFIRM_SECURE, newVal).apply();
+        settingsItems.get(IDX_CONFIRM_SECURE).setValue(newVal ? "ON (Prompt First)" : "OFF (Auto-Vault)");
+        settingsAdapter.notifyDataSetChanged();
+        Toast.makeText(this,
+                newVal ? "GhostDocs will ask before securing captures." : "GhostDocs will secure captures automatically.",
                 Toast.LENGTH_SHORT).show();
     }
 

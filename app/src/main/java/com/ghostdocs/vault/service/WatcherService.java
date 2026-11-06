@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
@@ -15,6 +16,7 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationManagerCompat;
 
 import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.classifier.RegexClassifierEngine;
@@ -68,6 +70,16 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
     public static final String STATUS_OFFLINE    = "OFFLINE";
     public static final String STATUS_STOPPED    = "STOPPED";
 
+    // ── Explicit Actions for User Confirmation ───────────────────────────────
+    public static final String ACTION_SECURE_CAPTURE = "com.ghostdocs.vault.ACTION_SECURE_CAPTURE";
+    public static final String ACTION_IGNORE_CAPTURE = "com.ghostdocs.vault.ACTION_IGNORE_CAPTURE";
+
+    public static final String EXTRA_IMAGE_URI       = "extra_image_uri";
+    public static final String EXTRA_DISPLAY_NAME    = "extra_display_name";
+    public static final String EXTRA_MIME_TYPE       = "extra_mime_type";
+    public static final String EXTRA_DATE_ADDED      = "extra_date_added";
+    public static final String EXTRA_NOTIFICATION_ID = "extra_notification_id";
+
     // ── Components ───────────────────────────────────────────────────────────
     private MediaContentObserver mediaObserver;
     private DatabaseReference watcherDbRef;
@@ -95,9 +107,48 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && intent.getAction() != null) {
+            String action = intent.getAction();
+            if (ACTION_SECURE_CAPTURE.equals(action)) {
+                handleSecureCaptureAction(intent);
+                return START_STICKY;
+            } else if (ACTION_IGNORE_CAPTURE.equals(action)) {
+                handleIgnoreCaptureAction(intent);
+                return START_STICKY;
+            }
+        }
+
         Log.d(TAG, "WatcherService onStartCommand called.");
         updateWatcherStatus(STATUS_ACTIVE, "Guardian actively monitoring MediaStore");
         return START_STICKY; // System restarts service if killed
+    }
+
+    private void handleSecureCaptureAction(Intent intent) {
+        int notifId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1);
+        if (notifId != -1) {
+            NotificationManagerCompat.from(this).cancel(notifId);
+        }
+
+        String uriStr = intent.getStringExtra(EXTRA_IMAGE_URI);
+        if (uriStr == null) return;
+        Uri imageUri = Uri.parse(uriStr);
+        String displayName = intent.getStringExtra(EXTRA_DISPLAY_NAME);
+        String mimeType = intent.getStringExtra(EXTRA_MIME_TYPE);
+        long dateAdded = intent.getLongExtra(EXTRA_DATE_ADDED, System.currentTimeMillis());
+
+        updateForegroundNotification("Securing confirmed capture: " + displayName);
+        VaultExecutor.getInstance().execute(() -> {
+            processIncomingMedia(imageUri, displayName, mimeType, dateAdded);
+        });
+    }
+
+    private void handleIgnoreCaptureAction(Intent intent) {
+        int notifId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1);
+        if (notifId != -1) {
+            NotificationManagerCompat.from(this).cancel(notifId);
+        }
+        updateForegroundNotification(getString(R.string.watcher_notification_text));
+        Log.i(TAG, "Capture ignored by user — original preserved safely in gallery.");
     }
 
     @Override
@@ -165,19 +216,85 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                                 @NonNull String mimeType, long dateAdded) {
         Log.i(TAG, "Captured image event received in WatcherService: " + displayName);
 
-        // Update Realtime Database status to SCANNING
-        updateWatcherStatus(STATUS_SCANNING, "Analyzing new image: " + displayName);
+        SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
+        boolean confirmBeforeSecure = prefs.getBoolean("confirm_before_secure", true);
 
-        // Update Foreground Notification text
-        updateForegroundNotification("Analyzing capture: " + displayName);
-
-        // Dispatch heavy processing pipeline to background thread pool
-        VaultExecutor.getInstance().execute(new Runnable() {
-            @Override
-            public void run() {
+        if (!confirmBeforeSecure) {
+            // Unattended automatic mode: process immediately
+            updateWatcherStatus(STATUS_SCANNING, "Analyzing capture: " + displayName);
+            updateForegroundNotification("Analyzing capture: " + displayName);
+            VaultExecutor.getInstance().execute(() -> {
                 processIncomingMedia(imageUri, displayName, mimeType, dateAdded);
-            }
+            });
+            return;
+        }
+
+        // Ask-First mode (Default): run OCR analysis and ask user before encrypting or deleting
+        updateWatcherStatus(STATUS_SCANNING, "Analyzing capture: " + displayName);
+        updateForegroundNotification("Analyzing capture: " + displayName);
+        VaultExecutor.getInstance().execute(() -> {
+            promptUserForCapture(imageUri, displayName, mimeType, dateAdded);
         });
+    }
+
+    /**
+     * Pre-analyzes captured media and posts an interactive notification asking the user
+     * whether to encrypt the document into the vault or keep it in the gallery.
+     */
+    private void promptUserForCapture(Uri imageUri, String displayName, String mimeType, long dateAdded) {
+        try {
+            SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
+            boolean excludeStudyNotes = prefs.getBoolean("exclude_study_notes", true);
+
+            // Step 1: Smart Crop & Flatten
+            CropTask cropTask = new CropTask(this, imageUri, null);
+            Bitmap processedBitmap = cropTask.executeDirectly();
+
+            // Step 2: ML Kit OCR
+            OcrTask ocrTask = new OcrTask(this, processedBitmap, displayName, null);
+            OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
+
+            RegexClassifierEngine.ClassificationResult classification = ocrResult.getClassification();
+            String docType = classification.getDocType();
+            String smartTitle = classification.getTitle();
+            String fullOcrText = ocrResult.getFullText();
+
+            // Recycle bitmap to conserve RAM
+            if (processedBitmap != null && !processedBitmap.isRecycled()) {
+                processedBitmap.recycle();
+            }
+
+            // Exclude study notes if configured
+            if (excludeStudyNotes && (DocumentModel.TYPE_STUDY_NOTE.equals(docType)
+                    || RegexClassifierEngine.isAcademicOrStudyNote(fullOcrText))) {
+                Log.i(TAG, "Class notes detected: " + displayName + ". Preserving in Gallery without prompt.");
+                updateForegroundNotification("Class notes detected — preserved in Gallery.");
+                return;
+            }
+
+            // Prompt user via interactive heads-up notification with action buttons
+            int notifId = (int) (System.currentTimeMillis() % 10000) + 3000;
+            String snippet = fullOcrText.length() > 100 ? fullOcrText.substring(0, 100) + "..." : fullOcrText;
+
+            NotificationHelper.showSecurityPromptNotification(
+                    this,
+                    notifId,
+                    imageUri,
+                    displayName,
+                    mimeType,
+                    dateAdded,
+                    smartTitle,
+                    docType,
+                    snippet
+            );
+
+            updateForegroundNotification("Capture detected: Waiting for your confirmation.");
+            updateWatcherStatus(STATUS_ACTIVE, "Waiting for confirmation: " + smartTitle);
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in promptUserForCapture", e);
+            updateForegroundNotification(getString(R.string.watcher_notification_text));
+        }
     }
 
     /**
