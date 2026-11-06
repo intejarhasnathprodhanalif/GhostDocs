@@ -119,3 +119,4 @@ public class LogListAdapter extends ArrayAdapter<LogListAdapter.LogItem> {
         return convertView;
     }
 }
+
