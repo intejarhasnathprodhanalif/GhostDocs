@@ -159,3 +159,4 @@ public class SecurePromptActivity extends AppCompatActivity {
         finish();
     }
 }
+

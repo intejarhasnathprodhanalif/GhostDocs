@@ -1,7 +1,14 @@
 package com.ghostdocs.vault.activities;
 
+import android.content.ContentValues;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.util.Log;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -10,10 +17,15 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.adapter.LogListAdapter;
+import com.ghostdocs.vault.security.AesEncryptionHelper;
+import com.ghostdocs.vault.tasks.VaultExecutor;
 import com.ghostdocs.vault.util.PermissionHelper;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,10 +66,11 @@ public class SettingsActivity extends AppCompatActivity {
     private static final int IDX_CONFIRM_SECURE = 2;
     private static final int IDX_EXCLUDE_NOTES  = 3;
     private static final int IDX_PERMISSIONS    = 4;
-    private static final int IDX_EXPORT_PDF     = 5;
-    private static final int IDX_CLEAR_VAULT    = 6;
-    private static final int IDX_ABOUT          = 7;
-    private static final int IDX_SIGN_OUT       = 8;
+    private static final int IDX_RESTORE_ALL    = 5;
+    private static final int IDX_EXPORT_PDF     = 6;
+    private static final int IDX_CLEAR_VAULT    = 7;
+    private static final int IDX_ABOUT          = 8;
+    private static final int IDX_SIGN_OUT       = 9;
 
     // ── Views ────────────────────────────────────────────────────────────────
     private ListView        lvSettings;
@@ -122,12 +135,15 @@ public class SettingsActivity extends AppCompatActivity {
                 "Storage Permissions",
                 PermissionHelper.hasAllRequiredPermissions(this) ? "✓ Granted" : "⚠ Required"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 5
-                getString(R.string.settings_export_pdf)));
+                "📥 Restore All to Gallery (Unvault for Uninstall)",
+                "Restores all photos to Gallery"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 6
-                getString(R.string.settings_clear_vault)));
+                getString(R.string.settings_export_pdf)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 7
-                getString(R.string.settings_about)));
+                getString(R.string.settings_clear_vault)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 8
+                getString(R.string.settings_about)));
+        settingsItems.add(new LogListAdapter.LogItem(                               // 9
                 "Sign Out", "→"));
     }
 
@@ -135,7 +151,7 @@ public class SettingsActivity extends AppCompatActivity {
      * Attaches the adapter and item-click listener to the ListView.
      *
      * <p>The click dispatcher demonstrates Polymorphism — the same
-     * {@code onItemClick} handles 8 different setting behaviours,
+     * {@code onItemClick} handles 9 different setting behaviours,
      * resolved at runtime by {@code position}.
      */
     private void setupListView() {
@@ -157,15 +173,16 @@ public class SettingsActivity extends AppCompatActivity {
      */
     private void handleSettingClick(int position) {
         switch (position) {
-            case IDX_AUTO_START:     toggleAutoStart();     break;
-            case IDX_AUTO_DELETE:    toggleAutoDelete();    break;
-            case IDX_CONFIRM_SECURE: toggleConfirmSecure(); break;
-            case IDX_EXCLUDE_NOTES:  toggleExcludeNotes();  break;
-            case IDX_PERMISSIONS:    openPermissions();     break;
-            case IDX_EXPORT_PDF:     exportPdf();           break;
-            case IDX_CLEAR_VAULT:    confirmClearVault();   break;
-            case IDX_ABOUT:          showAbout();            break;
-            case IDX_SIGN_OUT:       signOut();              break;
+            case IDX_AUTO_START:     toggleAutoStart();            break;
+            case IDX_AUTO_DELETE:    toggleAutoDelete();           break;
+            case IDX_CONFIRM_SECURE: toggleConfirmSecure();        break;
+            case IDX_EXCLUDE_NOTES:  toggleExcludeNotes();         break;
+            case IDX_PERMISSIONS:    openPermissions();            break;
+            case IDX_RESTORE_ALL:    confirmRestoreAllToGallery(); break;
+            case IDX_EXPORT_PDF:     exportPdf();                  break;
+            case IDX_CLEAR_VAULT:    confirmClearVault();          break;
+            case IDX_ABOUT:          showAbout();                   break;
+            case IDX_SIGN_OUT:       signOut();                     break;
         }
     }
 
@@ -228,6 +245,97 @@ public class SettingsActivity extends AppCompatActivity {
         } else {
             PermissionHelper.openAppSettings(this);
         }
+    }
+
+    /**
+     * Prompts confirmation and decrypts ALL vault images back into the user's public Gallery.
+     * Essential before uninstalling the application so the user does not lose their photos.
+     */
+    private void confirmRestoreAllToGallery() {
+        new AlertDialog.Builder(this)
+                .setTitle("📥 Restore All Photos to Gallery")
+                .setMessage("This will decrypt every picture and screenshot in your vault and restore them directly into your phone's Gallery (in Pictures/GhostDocs).\n\n"
+                        + "Use this before uninstalling GhostDocs so all your pictures are returned safely to your gallery.")
+                .setPositiveButton("Restore All to Gallery", (dialog, which) -> restoreAllImages())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void restoreAllImages() {
+        Toast.makeText(this, "Decrypting and restoring all photos to Gallery...", Toast.LENGTH_LONG).show();
+
+        VaultExecutor.getInstance().execute(() -> {
+            int restoredCount = 0;
+            int totalCount = 0;
+
+            File vaultDir = new File(getFilesDir(), "vault");
+            if (!vaultDir.exists() || !vaultDir.isDirectory()) {
+                runOnUiThread(() -> Toast.makeText(this, "Vault directory is empty. Nothing to restore.", Toast.LENGTH_LONG).show());
+                return;
+            }
+
+            File[] encFiles = vaultDir.listFiles((dir, name) -> name.endsWith(".enc"));
+            if (encFiles == null || encFiles.length == 0) {
+                runOnUiThread(() -> Toast.makeText(this, "No encrypted photos found in vault.", Toast.LENGTH_LONG).show());
+                return;
+            }
+
+            totalCount = encFiles.length;
+
+            for (File encFile : encFiles) {
+                try {
+                    Bitmap bmp = AesEncryptionHelper.getInstance().decryptFileToBitmap(encFile);
+                    if (bmp != null) {
+                        String docName = encFile.getName().replace(".enc", "");
+                        String safeName = "Restored_" + docName + "_" + System.currentTimeMillis() + ".jpg";
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            ContentValues values = new ContentValues();
+                            values.put(MediaStore.Images.Media.DISPLAY_NAME, safeName);
+                            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                            values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/GhostDocs");
+                            values.put(MediaStore.Images.Media.IS_PENDING, 1);
+
+                            Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                            if (uri != null) {
+                                try (OutputStream out = getContentResolver().openOutputStream(uri)) {
+                                    bmp.compress(Bitmap.CompressFormat.JPEG, 95, out);
+                                }
+                                values.clear();
+                                values.put(MediaStore.Images.Media.IS_PENDING, 0);
+                                getContentResolver().update(uri, values, null, null);
+                                restoredCount++;
+                            }
+                        } else {
+                            File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+                            File ghostDir = new File(picturesDir, "GhostDocs");
+                            ghostDir.mkdirs();
+                            File outFile = new File(ghostDir, safeName);
+                            try (FileOutputStream fos = new FileOutputStream(outFile)) {
+                                bmp.compress(Bitmap.CompressFormat.JPEG, 95, fos);
+                                fos.flush();
+                            }
+                            restoredCount++;
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to restore file: " + encFile.getName(), e);
+                }
+            }
+
+            final int finalRestored = restoredCount;
+            final int finalTotal = totalCount;
+
+            runOnUiThread(() -> {
+                new AlertDialog.Builder(SettingsActivity.this)
+                        .setTitle("✅ Restoration Complete")
+                        .setMessage("Successfully decrypted and restored " + finalRestored + " of " + finalTotal
+                                + " photos back into your phone's Gallery (Pictures/GhostDocs)!\n\n"
+                                + "All your images are now visible in your regular Gallery app. You can safely uninstall the app now if you wish.")
+                        .setPositiveButton("Awesome!", null)
+                        .show();
+            });
+        });
     }
 
     /** Exports or views generated vault PDFs. */
@@ -313,6 +421,7 @@ public class SettingsActivity extends AppCompatActivity {
                         + "\n\nAn intelligent Android security application that "
                         + "automatically detects, extracts, encrypts, and organises "
                         + "sensitive screenshots into a biometric-locked vault."
+                        + "\n\n💡 Tip: Before uninstalling the app, tap 'Restore All to Gallery' in Settings to return all your photos back to your regular Gallery!"
                         + "\n\n100% Java · Firebase · ML Kit · OpenCV · ZXing")
                 .setPositiveButton("OK", null)
                 .show();
