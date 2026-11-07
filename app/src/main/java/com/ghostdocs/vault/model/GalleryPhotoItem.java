@@ -96,3 +96,4 @@ public class GalleryPhotoItem {
         return Objects.hash(uri);
     }
 }
+

@@ -30,10 +30,13 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.ghostdocs.vault.R;
+import com.ghostdocs.vault.adapter.CategoryChipAdapter;
 import com.ghostdocs.vault.adapter.VaultRecyclerAdapter;
+import com.ghostdocs.vault.model.CategoryChipModel;
 import com.ghostdocs.vault.model.DocumentModel;
 import com.ghostdocs.vault.security.AesEncryptionHelper;
 import com.ghostdocs.vault.service.WatcherService;
@@ -62,6 +65,7 @@ import com.google.firebase.storage.StorageReference;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -96,6 +100,7 @@ public class VaultActivity extends AppCompatActivity
 
     // ── Views ────────────────────────────────────────────────────────────────
     private RecyclerView              rvVault;
+    private RecyclerView              rvCategoryChips;
     private View                      layoutEmptyState;
     private TextView                  tvDocCount;
     private TextView                  tvWatcherStatus;
@@ -104,9 +109,11 @@ public class VaultActivity extends AppCompatActivity
 
     // ── Adapter & data ───────────────────────────────────────────────────────
     private VaultRecyclerAdapter      vaultAdapter;
+    private CategoryChipAdapter       categoryChipAdapter;
     private final List<DocumentModel> masterDocumentList   = new ArrayList<>();
     private final List<DocumentModel> filteredDocumentList = new ArrayList<>();
     private String                    currentSearchQuery   = "";
+    private String                    selectedCategoryId   = CategoryChipModel.CATEGORY_ALL;
 
     // ── Firebase ─────────────────────────────────────────────────────────────
     private FirebaseAuth              firebaseAuth;
@@ -137,6 +144,7 @@ public class VaultActivity extends AppCompatActivity
 
         bindViews();
         setupRecyclerView();
+        setupCategoryChips();
         setupSearchFilter();
         setClickListeners();
 
@@ -188,11 +196,25 @@ public class VaultActivity extends AppCompatActivity
 
     private void bindViews() {
         rvVault           = findViewById(R.id.rv_vault);
+        rvCategoryChips   = findViewById(R.id.rv_category_chips);
         layoutEmptyState  = findViewById(R.id.layout_empty_state);
         tvDocCount        = findViewById(R.id.tv_doc_count);
         tvWatcherStatus   = findViewById(R.id.tv_watcher_status);
         fabWatcherToggle  = findViewById(R.id.fab_watcher_toggle);
         etSearchVault     = findViewById(R.id.et_search_vault);
+    }
+
+    private void setupCategoryChips() {
+        if (rvCategoryChips != null) {
+            categoryChipAdapter = new CategoryChipAdapter(this, categoryId -> {
+                selectedCategoryId = categoryId;
+                applyFilters();
+            });
+            LinearLayoutManager layoutManager =
+                    new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
+            rvCategoryChips.setLayoutManager(layoutManager);
+            rvCategoryChips.setAdapter(categoryChipAdapter);
+        }
     }
 
     /**
@@ -220,7 +242,8 @@ public class VaultActivity extends AppCompatActivity
 
                 @Override
                 public void onTextChanged(CharSequence s, int start, int before, int count) {
-                    filterDocuments(s != null ? s.toString() : "");
+                    currentSearchQuery = s != null ? s.toString() : "";
+                    applyFilters();
                 }
 
                 @Override
@@ -230,31 +253,41 @@ public class VaultActivity extends AppCompatActivity
     }
 
     /**
-     * Filters documents in real-time across titles, document types, extracted tags, and full OCR text.
+     * Filters documents across selected category and real-time search query.
      */
-    private void filterDocuments(String query) {
-        currentSearchQuery = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
+    private void applyFilters() {
+        String cleanQuery = currentSearchQuery != null ? currentSearchQuery.trim().toLowerCase(Locale.ROOT) : "";
         filteredDocumentList.clear();
 
-        if (currentSearchQuery.isEmpty()) {
-            filteredDocumentList.addAll(masterDocumentList);
-        } else {
-            for (DocumentModel doc : masterDocumentList) {
+        for (DocumentModel doc : masterDocumentList) {
+            // 1. Category check
+            boolean matchesCategory = CategoryChipModel.CATEGORY_ALL.equalsIgnoreCase(selectedCategoryId);
+            if (!matchesCategory && doc.getDocType() != null) {
+                matchesCategory = doc.getDocType().equalsIgnoreCase(selectedCategoryId);
+            }
+            if (!matchesCategory) {
+                continue;
+            }
+
+            // 2. Search query check
+            if (cleanQuery.isEmpty()) {
+                filteredDocumentList.add(doc);
+            } else {
                 boolean matchesTitle = doc.getTitle() != null
-                        && doc.getTitle().toLowerCase(Locale.ROOT).contains(currentSearchQuery);
+                        && doc.getTitle().toLowerCase(Locale.ROOT).contains(cleanQuery);
                 boolean matchesType = doc.getDocType() != null
-                        && doc.getDocType().toLowerCase(Locale.ROOT).contains(currentSearchQuery);
+                        && doc.getDocType().toLowerCase(Locale.ROOT).contains(cleanQuery);
                 boolean matchesTags = false;
                 if (doc.getTags() != null) {
                     for (String tag : doc.getTags()) {
-                        if (tag != null && tag.toLowerCase(Locale.ROOT).contains(currentSearchQuery)) {
+                        if (tag != null && tag.toLowerCase(Locale.ROOT).contains(cleanQuery)) {
                             matchesTags = true;
                             break;
                         }
                     }
                 }
                 boolean matchesOcr = doc.getOcrText() != null
-                        && doc.getOcrText().toLowerCase(Locale.ROOT).contains(currentSearchQuery);
+                        && doc.getOcrText().toLowerCase(Locale.ROOT).contains(cleanQuery);
 
                 if (matchesTitle || matchesType || matchesTags || matchesOcr) {
                     filteredDocumentList.add(doc);
@@ -264,11 +297,23 @@ public class VaultActivity extends AppCompatActivity
 
         vaultAdapter.updateData(filteredDocumentList);
         updateEmptyState(filteredDocumentList.isEmpty());
-        if (currentSearchQuery.isEmpty()) {
+        if (cleanQuery.isEmpty() && CategoryChipModel.CATEGORY_ALL.equalsIgnoreCase(selectedCategoryId)) {
             updateDocCount(masterDocumentList.size());
         } else {
             tvDocCount.setText(filteredDocumentList.size() + " of " + masterDocumentList.size() + " found");
         }
+    }
+
+    private void updateCategoryCounts() {
+        if (categoryChipAdapter == null) return;
+        Map<String, Integer> counts = new HashMap<>();
+        for (DocumentModel doc : masterDocumentList) {
+            if (doc.getDocType() != null) {
+                String type = doc.getDocType().toUpperCase(Locale.ROOT);
+                counts.put(type, counts.getOrDefault(type, 0) + 1);
+            }
+        }
+        categoryChipAdapter.updateCounts(counts, masterDocumentList.size());
     }
 
     private void setClickListeners() {
@@ -341,7 +386,8 @@ public class VaultActivity extends AppCompatActivity
 
                         masterDocumentList.clear();
                         masterDocumentList.addAll(freshList);
-                        filterDocuments(currentSearchQuery);
+                        updateCategoryCounts();
+                        applyFilters();
 
                         VaultWidgetProvider.updateAllWidgets(this, freshList.size(), isWatcherRunning);
                         Log.d(TAG, "Vault synced: " + freshList.size() + " documents.");

@@ -271,3 +271,4 @@ public class GalleryPhotoAdapter extends RecyclerView.Adapter<GalleryPhotoAdapte
         }
     }
 }
+

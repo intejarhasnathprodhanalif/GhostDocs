@@ -170,6 +170,28 @@
         </RelativeLayout>
     </RelativeLayout>
 
+    <!-- ── Category Filter Bar (Smart Folders) ────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/layout_categories"
+        android:layout_width="0dp"
+        android:layout_height="46dp"
+        android:background="@color/ghostSurface"
+        android:paddingVertical="6dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_search">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_category_chips"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingHorizontal="12dp"
+            android:orientation="horizontal"
+            tools:listitem="@layout/item_category_chip" />
+
+    </RelativeLayout>
+
     <!-- ── Main RecyclerView (Firestore-synced vault grid) ───────────────── -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_vault"
@@ -182,7 +204,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_search"
+        app:layout_constraintTop_toBottomOf="@id/layout_categories"
         tools:itemCount="6"
         tools:listitem="@layout/item_document" />
 
@@ -197,7 +219,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_search"
+        app:layout_constraintTop_toBottomOf="@id/layout_categories"
         tools:visibility="visible">
 
         <TextView
