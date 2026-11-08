@@ -7,6 +7,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/card_photo_root"
     style="@style/Card.GhostDocs"
     android:layout_width="match_parent"
     android:layout_height="130dp"
@@ -64,6 +65,24 @@
             android:paddingVertical="2dp"
             android:text="🔒 SECURED"
             android:textColor="@color/ghostSuccess"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <!-- Watcher Suggested Badge (Top Left, shown when Watcher recommends securing) -->
+        <TextView
+            android:id="@+id/tv_suggested_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentStart="true"
+            android:layout_margin="6dp"
+            android:background="#E616213E"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:text="✨ SUGGESTED"
+            android:textColor="@color/ghostWarning"
             android:textSize="9sp"
             android:textStyle="bold"
             android:visibility="gone"

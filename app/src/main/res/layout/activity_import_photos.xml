@@ -101,6 +101,59 @@
 
     </RelativeLayout>
 
+    <!-- ── Watcher Intelligence Suggestion Banner ────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/layout_watcher_suggestion"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/ghostSurfaceVariant"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="8dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_quick_actions"
+        tools:visibility="visible">
+
+        <TextView
+            android:id="@+id/tv_suggestion_icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:text="🛡️"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tv_watcher_suggestion_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@id/tv_suggestion_icon"
+            android:layout_toStartOf="@+id/btn_select_suggested"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:text="Watcher Active: Sensitive photos suggested to secure."
+            android:textColor="@color/ghostWarning"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btn_select_suggested"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/bg_chip_unselected"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="5dp"
+            android:text="✨ Pick Suggested"
+            android:textColor="@color/ghostPrimary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+    </RelativeLayout>
+
     <!-- ── 3. Selection & Count Bar ──────────────────────────────────────── -->
     <RelativeLayout
         android:id="@+id/layout_selection_bar"
@@ -110,7 +163,7 @@
         android:paddingHorizontal="16dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_quick_actions">
+        app:layout_constraintTop_toBottomOf="@id/layout_watcher_suggestion">
 
         <CheckBox
             android:id="@+id/cb_select_all"

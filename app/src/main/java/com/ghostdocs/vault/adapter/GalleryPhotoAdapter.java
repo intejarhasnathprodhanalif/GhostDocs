@@ -21,11 +21,13 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.model.GalleryPhotoItem;
 import com.ghostdocs.vault.tasks.VaultExecutor;
+import com.google.android.material.card.MaterialCardView;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -91,8 +93,11 @@ public class GalleryPhotoAdapter extends RecyclerView.Adapter<GalleryPhotoAdapte
         // Vaulted & Selection state
         if (item.isAlreadyVaulted()) {
             holder.tvAlreadyVaulted.setVisibility(View.VISIBLE);
+            holder.tvSuggested.setVisibility(View.GONE);
             holder.dimOverlay.setVisibility(View.VISIBLE);
             holder.cbSelected.setVisibility(View.GONE);
+            holder.cardRoot.setStrokeColor(ContextCompat.getColor(context, R.color.ghostDivider));
+            holder.cardRoot.setStrokeWidth(1);
             holder.itemView.setEnabled(false);
         } else {
             holder.tvAlreadyVaulted.setVisibility(View.GONE);
@@ -100,6 +105,19 @@ public class GalleryPhotoAdapter extends RecyclerView.Adapter<GalleryPhotoAdapte
             holder.cbSelected.setVisibility(View.VISIBLE);
             holder.cbSelected.setChecked(item.isSelected());
             holder.itemView.setEnabled(true);
+
+            // Watcher suggestion badge & subtle glow border
+            if (item.isSuggested()) {
+                holder.tvSuggested.setVisibility(View.VISIBLE);
+                String reason = item.getSuggestionReason();
+                holder.tvSuggested.setText(reason.isEmpty() ? "✨ SUGGESTED" : "✨ " + reason);
+                holder.cardRoot.setStrokeColor(ContextCompat.getColor(context, R.color.ghostWarning));
+                holder.cardRoot.setStrokeWidth(3);
+            } else {
+                holder.tvSuggested.setVisibility(View.GONE);
+                holder.cardRoot.setStrokeColor(ContextCompat.getColor(context, R.color.ghostDivider));
+                holder.cardRoot.setStrokeWidth(1);
+            }
 
             holder.itemView.setOnClickListener(v -> {
                 item.setSelected(!item.isSelected());
@@ -161,6 +179,26 @@ public class GalleryPhotoAdapter extends RecyclerView.Adapter<GalleryPhotoAdapte
             }
         }
         return count;
+    }
+
+    public int getSuggestedCount() {
+        int count = 0;
+        for (GalleryPhotoItem item : photoList) {
+            if (item.isSuggested() && !item.isAlreadyVaulted()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public void selectSuggested() {
+        for (GalleryPhotoItem item : photoList) {
+            if (item.isSuggested() && !item.isAlreadyVaulted()) {
+                item.setSelected(true);
+            }
+        }
+        notifyDataSetChanged();
+        notifySelectionChange();
     }
 
     private void notifySelectionChange() {
@@ -253,18 +291,22 @@ public class GalleryPhotoAdapter extends RecyclerView.Adapter<GalleryPhotoAdapte
 
     // ── ViewHolder Pattern ───────────────────────────────────────────────────
     static class PhotoViewHolder extends RecyclerView.ViewHolder {
+        final MaterialCardView cardRoot;
         final ImageView ivThumbnail;
         final CheckBox cbSelected;
         final TextView tvAlreadyVaulted;
+        final TextView tvSuggested;
         final TextView tvName;
         final TextView tvDate;
         final View dimOverlay;
 
         PhotoViewHolder(@NonNull View itemView) {
             super(itemView);
+            cardRoot = (MaterialCardView) itemView;
             ivThumbnail = itemView.findViewById(R.id.iv_gallery_thumbnail);
             cbSelected = itemView.findViewById(R.id.cb_photo_selected);
             tvAlreadyVaulted = itemView.findViewById(R.id.tv_already_vaulted_badge);
+            tvSuggested = itemView.findViewById(R.id.tv_suggested_badge);
             tvName = itemView.findViewById(R.id.tv_photo_name);
             tvDate = itemView.findViewById(R.id.tv_photo_date);
             dimOverlay = itemView.findViewById(R.id.view_dim_disabled);

@@ -28,6 +28,8 @@ public class GalleryPhotoItem {
     private final long size;
     private boolean selected;
     private boolean alreadyVaulted;
+    private boolean suggested;
+    private String suggestionReason;
 
     public GalleryPhotoItem(@NonNull Uri uri,
                             @NonNull String displayName,
@@ -42,6 +44,8 @@ public class GalleryPhotoItem {
         this.size = size;
         this.alreadyVaulted = alreadyVaulted;
         this.selected = false;
+        this.suggested = false;
+        this.suggestionReason = "";
     }
 
     @NonNull
@@ -81,6 +85,23 @@ public class GalleryPhotoItem {
 
     public void setAlreadyVaulted(boolean alreadyVaulted) {
         this.alreadyVaulted = alreadyVaulted;
+    }
+
+    public boolean isSuggested() {
+        return suggested;
+    }
+
+    public void setSuggested(boolean suggested) {
+        this.suggested = suggested;
+    }
+
+    @NonNull
+    public String getSuggestionReason() {
+        return suggestionReason != null ? suggestionReason : "";
+    }
+
+    public void setSuggestionReason(@Nullable String suggestionReason) {
+        this.suggestionReason = suggestionReason != null ? suggestionReason : "";
     }
 
     @Override

@@ -30,6 +30,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.adapter.GalleryPhotoAdapter;
+import com.ghostdocs.vault.classifier.RegexClassifierEngine;
 import com.ghostdocs.vault.model.DocumentModel;
 import com.ghostdocs.vault.model.GalleryPhotoItem;
 import com.ghostdocs.vault.tasks.CropTask;
@@ -45,11 +46,17 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.text.Text;
+import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.TextRecognizer;
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -84,6 +91,9 @@ public class ImportPhotosActivity extends AppCompatActivity
     private RecyclerView         rvGalleryGrid;
     private View                 layoutEmptyState;
     private View                 layoutProgressOverlay;
+    private View                 layoutWatcherSuggestion;
+    private TextView             tvWatcherSuggestionText;
+    private TextView             btnSelectSuggested;
     private CheckBox             cbSelectAll;
     private CheckBox             cbDeleteOriginals;
     private TextView             tvSelectionCount;
@@ -136,6 +146,14 @@ public class ImportPhotosActivity extends AppCompatActivity
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        applyWatcherSuggestions(displayedPhotoList);
+        galleryAdapter.notifyDataSetChanged();
+        updateWatcherSuggestionBanner();
+    }
+
+    @Override
     public void onBackPressed() {
         if (isSecuringInProgress) {
             Toast.makeText(this, "Please wait while documents are being secured...", Toast.LENGTH_SHORT).show();
@@ -149,17 +167,20 @@ public class ImportPhotosActivity extends AppCompatActivity
     // ════════════════════════════════════════════════════════════════════════
 
     private void bindViews() {
-        rvGalleryGrid         = findViewById(R.id.rv_gallery_grid);
-        layoutEmptyState      = findViewById(R.id.layout_empty_state);
-        layoutProgressOverlay = findViewById(R.id.layout_progress_overlay);
-        cbSelectAll           = findViewById(R.id.cb_select_all);
-        cbDeleteOriginals     = findViewById(R.id.cb_delete_originals);
-        tvSelectionCount      = findViewById(R.id.tv_selection_count);
-        btnSecureSelected     = findViewById(R.id.btn_secure_selected);
-        tvProgressHeadline    = findViewById(R.id.tv_progress_headline);
-        tvProgressStep        = findViewById(R.id.tv_progress_step);
-        tvProgressFilename    = findViewById(R.id.tv_progress_filename);
-        pbDeterminateBar      = findViewById(R.id.pb_determinate_bar);
+        rvGalleryGrid           = findViewById(R.id.rv_gallery_grid);
+        layoutEmptyState        = findViewById(R.id.layout_empty_state);
+        layoutProgressOverlay   = findViewById(R.id.layout_progress_overlay);
+        layoutWatcherSuggestion = findViewById(R.id.layout_watcher_suggestion);
+        tvWatcherSuggestionText = findViewById(R.id.tv_watcher_suggestion_text);
+        btnSelectSuggested      = findViewById(R.id.btn_select_suggested);
+        cbSelectAll             = findViewById(R.id.cb_select_all);
+        cbDeleteOriginals       = findViewById(R.id.cb_delete_originals);
+        tvSelectionCount        = findViewById(R.id.tv_selection_count);
+        btnSecureSelected       = findViewById(R.id.btn_secure_selected);
+        tvProgressHeadline      = findViewById(R.id.tv_progress_headline);
+        tvProgressStep          = findViewById(R.id.tv_progress_step);
+        tvProgressFilename      = findViewById(R.id.tv_progress_filename);
+        pbDeterminateBar        = findViewById(R.id.pb_determinate_bar);
 
         // Pre-fill delete preference
         SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
@@ -185,6 +206,14 @@ public class ImportPhotosActivity extends AppCompatActivity
 
         // Rescan button
         findViewById(R.id.btn_rescan_device).setOnClickListener(v -> scanGalleryScreenshots());
+
+        // Select Suggested Photos button
+        if (btnSelectSuggested != null) {
+            btnSelectSuggested.setOnClickListener(v -> {
+                galleryAdapter.selectSuggested();
+                Toast.makeText(this, "Selected suggested sensitive photos.", Toast.LENGTH_SHORT).show();
+            });
+        }
 
         // Select All toggle
         cbSelectAll.setOnClickListener(v -> {
@@ -247,7 +276,150 @@ public class ImportPhotosActivity extends AppCompatActivity
     }
 
     /**
-     * Queries MediaStore on a background worker thread for existing device screenshots.
+     * Checks if the GhostDocs background Watcher service is currently enabled by user.
+     */
+    private boolean isWatcherActive() {
+        SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
+        return prefs.getBoolean("watcher_enabled", false);
+    }
+
+    /**
+     * Heuristic keyword evaluation for sensitive document categories based on filename or OCR tokens.
+     */
+    @Nullable
+    private String evaluateSensitiveKeyword(@Nullable String text) {
+        if (text == null) return null;
+        String lower = text.toLowerCase(Locale.ROOT);
+
+        if (lower.contains("bkash") || lower.contains("nagad") || lower.contains("rocket")
+                || lower.contains("trx") || lower.contains("bank") || lower.contains("statement")
+                || lower.contains("salary") || lower.contains("transaction") || lower.contains("card")) {
+            return "FINANCIAL";
+        }
+        if (lower.contains("receipt") || lower.contains("invoice") || lower.contains("bill")
+                || lower.contains("voucher") || lower.contains("slip") || lower.contains("memo")) {
+            return "RECEIPT";
+        }
+        if (lower.contains("nid") || lower.contains("passport") || lower.contains("identity")
+                || lower.contains("license") || lower.contains("govt") || lower.contains("voter")) {
+            return "IDENTITY";
+        }
+        if (lower.contains("prescription") || lower.contains("medical") || lower.contains("clinic")
+                || lower.contains("hospital") || lower.contains("doctor") || lower.contains("rx")) {
+            return "MEDICAL";
+        }
+        if (lower.contains("password") || lower.contains("secret") || lower.contains("credential")
+                || lower.contains("otp") || lower.contains("pin") || lower.contains("security")) {
+            return "PASSWORD";
+        }
+        if (lower.contains("screenshot") || lower.contains("screen_") || lower.contains("screencap")) {
+            return "SCREENSHOT";
+        }
+        return null;
+    }
+
+    /**
+     * Applies Watcher intelligence suggestions to a list of photos if the Watcher is enabled.
+     */
+    private void applyWatcherSuggestions(@Nullable List<GalleryPhotoItem> items) {
+        if (items == null || items.isEmpty()) return;
+
+        if (!isWatcherActive()) {
+            for (GalleryPhotoItem item : items) {
+                item.setSuggested(false);
+                item.setSuggestionReason("");
+            }
+            return;
+        }
+
+        for (GalleryPhotoItem item : items) {
+            if (item.isAlreadyVaulted()) continue;
+
+            String reason = evaluateSensitiveKeyword(item.getDisplayName());
+            if (reason != null) {
+                item.setSuggested(true);
+                item.setSuggestionReason(reason);
+            }
+        }
+    }
+
+    /**
+     * Deep background OCR scan: Inspects recent un-suggested photos via ML Kit to detect sensitive text.
+     */
+    private void runBackgroundOcrSuggestion(@Nullable List<GalleryPhotoItem> items) {
+        if (!isWatcherActive() || items == null || items.isEmpty()) return;
+
+        final List<GalleryPhotoItem> targetList = new ArrayList<>(items);
+        VaultExecutor.getInstance().execute(() -> {
+            boolean hasNewSuggestion = false;
+            int inspected = 0;
+
+            for (GalleryPhotoItem item : targetList) {
+                if (inspected >= 15) break; // Inspect up to 15 recent items to conserve device memory & battery
+                if (item.isAlreadyVaulted() || item.isSuggested()) continue;
+
+                try {
+                    OcrTask ocrTask = new OcrTask(this, item.getUri(), item.getDisplayName(), null);
+                    OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
+                    if (ocrResult != null && ocrResult.getClassification() != null) {
+                        String docType = ocrResult.getClassification().getDocType();
+                        if (!DocumentModel.TYPE_OTHER.equalsIgnoreCase(docType)) {
+                            item.setSuggested(true);
+                            item.setSuggestionReason(docType);
+                            hasNewSuggestion = true;
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.d(TAG, "OCR suggestion scan skipped for " + item.getDisplayName() + ": " + e.getMessage());
+                }
+                inspected++;
+            }
+
+            if (hasNewSuggestion) {
+                runOnUiThread(() -> {
+                    galleryAdapter.notifyDataSetChanged();
+                    updateWatcherSuggestionBanner();
+                });
+            }
+        });
+    }
+
+    /**
+     * Updates the Watcher suggestion banner at the top of the import screen.
+     */
+    private void updateWatcherSuggestionBanner() {
+        if (!isWatcherActive()) {
+            if (layoutWatcherSuggestion != null) {
+                layoutWatcherSuggestion.setVisibility(View.GONE);
+            }
+            return;
+        }
+
+        int suggestedCount = galleryAdapter != null ? galleryAdapter.getSuggestedCount() : 0;
+        if (layoutWatcherSuggestion != null) {
+            layoutWatcherSuggestion.setVisibility(View.VISIBLE);
+        }
+        if (suggestedCount > 0) {
+            if (tvWatcherSuggestionText != null) {
+                tvWatcherSuggestionText.setText("🛡️ Watcher Active: " + suggestedCount + " sensitive capture"
+                        + (suggestedCount > 1 ? "s" : "") + " suggested to secure");
+            }
+            if (btnSelectSuggested != null) {
+                btnSelectSuggested.setVisibility(View.VISIBLE);
+                btnSelectSuggested.setText("✨ Pick " + suggestedCount + " Suggested");
+            }
+        } else {
+            if (tvWatcherSuggestionText != null) {
+                tvWatcherSuggestionText.setText("🛡️ Watcher Active: Scanning & suggesting sensitive photos");
+            }
+            if (btnSelectSuggested != null) {
+                btnSelectSuggested.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    /**
+     * Queries MediaStore on a background worker thread for existing device screenshots and sensitive files.
      */
     private void scanGalleryScreenshots() {
         VaultExecutor.getInstance().execute(() -> {
@@ -263,15 +435,30 @@ public class ImportPhotosActivity extends AppCompatActivity
                     MediaStore.Images.Media.SIZE
             };
 
-            // Look for screenshots across filenames and folders
+            // Look for screenshots and sensitive document keywords across filenames and folders
             StringBuilder selection = new StringBuilder();
             selection.append("(")
                     .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%screenshot%' OR ")
                     .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%Screenshot%' OR ")
-                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%screen%'");
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%screen%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%bkash%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%nagad%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%rocket%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%trx%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%receipt%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%invoice%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%statement%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%bill%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%bank%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%nid%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%passport%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%prescription%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%medical%' OR ")
+                    .append(MediaStore.Images.Media.DISPLAY_NAME).append(" LIKE '%password%'");
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 selection.append(" OR ").append(MediaStore.Images.Media.RELATIVE_PATH).append(" LIKE '%Screenshots%'");
+                selection.append(" OR ").append(MediaStore.Images.Media.RELATIVE_PATH).append(" LIKE '%Documents%'");
             }
             selection.append(") AND ").append(MediaStore.Images.Media.MIME_TYPE).append(" LIKE 'image/%'");
 
@@ -310,6 +497,9 @@ public class ImportPhotosActivity extends AppCompatActivity
                 Log.e(TAG, "Error querying MediaStore screenshots", e);
             }
 
+            // Apply watcher suggestion heuristics
+            applyWatcherSuggestions(scannedItems);
+
             runOnUiThread(() -> {
                 displayedPhotoList.clear();
                 displayedPhotoList.addAll(scannedItems);
@@ -318,7 +508,12 @@ public class ImportPhotosActivity extends AppCompatActivity
                 boolean isEmpty = displayedPhotoList.isEmpty();
                 layoutEmptyState.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
                 rvGalleryGrid.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+
+                updateWatcherSuggestionBanner();
             });
+
+            // Run deep OCR classification on worker thread for remaining items
+            runBackgroundOcrSuggestion(scannedItems);
         });
     }
 
@@ -357,12 +552,13 @@ public class ImportPhotosActivity extends AppCompatActivity
                         size,
                         isAlreadyVaulted
                 );
-                // Pre-select images manually chosen by user
-                if (!isAlreadyVaulted) {
-                    item.setSelected(true);
-                }
+                // Photos remain unselected by default so user retains 100% decision control
+                item.setSelected(false);
                 newItems.add(item);
             }
+
+            // Apply watcher suggestion heuristics to newly imported gallery photos
+            applyWatcherSuggestions(newItems);
 
             runOnUiThread(() -> {
                 // Prepend picked photos to the list
@@ -375,8 +571,24 @@ public class ImportPhotosActivity extends AppCompatActivity
                 layoutEmptyState.setVisibility(View.GONE);
                 rvGalleryGrid.setVisibility(View.VISIBLE);
                 rvGalleryGrid.scrollToPosition(0);
-                Toast.makeText(this, newItems.size() + " photos added from gallery. Ready to secure!", Toast.LENGTH_SHORT).show();
+
+                updateWatcherSuggestionBanner();
+
+                int suggestedInBatch = 0;
+                for (GalleryPhotoItem p : newItems) {
+                    if (p.isSuggested()) suggestedInBatch++;
+                }
+
+                if (suggestedInBatch > 0) {
+                    Toast.makeText(this, newItems.size() + " photos added. " + suggestedInBatch
+                            + " suggested to secure!", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, newItems.size() + " photos added from gallery.", Toast.LENGTH_SHORT).show();
+                }
             });
+
+            // Run deep OCR classification on worker thread for new gallery photos
+            runBackgroundOcrSuggestion(newItems);
         });
     }
 
