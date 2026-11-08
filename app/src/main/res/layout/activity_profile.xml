@@ -1,0 +1,579 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  activity_profile.xml — Profile & Account Management Screen
+  Root: ConstraintLayout (as mandated by spec).
+  Cards: RelativeLayout inside MaterialCardView.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ghostDarkBg"
+    tools:context=".activities.ProfileActivity">
+
+    <!-- ── 1. Custom Toolbar ──────────────────────────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/toolbar_profile"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:background="@color/ghostSurface"
+        android:paddingHorizontal="12dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Back button -->
+        <TextView
+            android:id="@+id/btn_back_profile"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:padding="8dp"
+            android:text="←"
+            android:textColor="@color/ghostPrimary"
+            android:textSize="22sp"
+            android:contentDescription="Go back" />
+
+        <!-- Title & Subtitle container -->
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@id/btn_back_profile"
+            android:layout_marginStart="8dp">
+
+            <TextView
+                android:id="@+id/tv_toolbar_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="User Profile &amp; Security"
+                android:textColor="@color/ghostOnSurface"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_toolbar_title"
+                android:text="Manage username, password &amp; account"
+                android:textColor="@color/ghostOnSurfaceMuted"
+                android:textSize="11sp" />
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+    <!-- ── 2. Scrollable Profile Body ────────────────────────────────────── -->
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingBottom="32dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_profile">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp">
+
+            <!-- ── Card 1: Header Profile Card ───────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_profile_header"
+                style="@style/Card.GhostDocs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <!-- Avatar Circle -->
+                    <TextView
+                        android:id="@+id/tv_avatar_icon"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:layout_alignParentStart="true"
+                        android:layout_alignParentTop="true"
+                        android:background="@drawable/bg_circle_avatar"
+                        android:gravity="center"
+                        android:text="👤"
+                        android:textColor="@color/ghostPrimary"
+                        android:textSize="28sp"
+                        android:textStyle="bold" />
+
+                    <!-- User Display Name -->
+                    <TextView
+                        android:id="@+id/tv_profile_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_toEndOf="@id/tv_avatar_icon"
+                        android:layout_marginStart="14dp"
+                        android:text="Ghost User"
+                        android:textColor="@color/ghostOnSurface"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <!-- User Email -->
+                    <TextView
+                        android:id="@+id/tv_profile_email"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tv_profile_name"
+                        android:layout_toEndOf="@id/tv_avatar_icon"
+                        android:layout_marginStart="14dp"
+                        android:layout_marginTop="2dp"
+                        android:text="user@example.com"
+                        android:textColor="@color/ghostOnSurfaceMuted"
+                        android:textSize="13sp" />
+
+                    <!-- Verification Badge -->
+                    <TextView
+                        android:id="@+id/tv_email_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tv_profile_email"
+                        android:layout_toEndOf="@id/tv_avatar_icon"
+                        android:layout_marginStart="14dp"
+                        android:layout_marginTop="6dp"
+                        android:background="@drawable/bg_badge_verified"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="3dp"
+                        android:text="✓ Email Verified"
+                        android:textColor="@color/ghostSuccess"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <!-- Member Since -->
+                    <TextView
+                        android:id="@+id/tv_member_since"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tv_avatar_icon"
+                        android:layout_marginTop="14dp"
+                        android:text="Account Active • Hardware Encryption Enabled"
+                        android:textColor="@color/ghostOnSurfaceMuted"
+                        android:textSize="11sp" />
+
+                </RelativeLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── Card 2: Edit Display Name / Username ───────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_edit_name"
+                style="@style/Card.GhostDocs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/card_profile_header"
+                android:layout_marginTop="14dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/tv_section_name_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👤 Display Name / Username"
+                        android:textColor="@color/ghostPrimary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_section_name_desc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tv_section_name_title"
+                        android:layout_marginTop="2dp"
+                        android:text="Customize your name shown across GhostDocs and exports"
+                        android:textColor="@color/ghostOnSurfaceMuted"
+                        android:textSize="11sp" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_username"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tv_section_name_desc"
+                        android:layout_marginTop="12dp"
+                        android:hint="Full Name / Username"
+                        app:boxStrokeColor="@color/ghostPrimary"
+                        app:hintTextColor="@color/ghostOnSurfaceMuted"
+                        app:startIconDrawable="@android:drawable/ic_menu_myplaces"
+                        app:startIconTint="@color/ghostPrimary">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_username"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPersonName|textCapWords"
+                            android:maxLines="1"
+                            android:textColor="@color/ghostOnSurface" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_save_username"
+                        style="@style/Button.GhostDocs.Primary"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_below="@id/til_username"
+                        android:layout_marginTop="12dp"
+                        android:text="💾 Save Username"
+                        android:textSize="13sp" />
+
+                </RelativeLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── Card 3: Password & Security ────────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_security"
+                style="@style/Card.GhostDocs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/card_edit_name"
+                android:layout_marginTop="14dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/tv_section_password_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔑 Password &amp; Authentication"
+                        android:textColor="@color/ghostPrimary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_section_password_desc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tv_section_password_title"
+                        android:layout_marginTop="2dp"
+                        android:text="Update your password or request a reset email"
+                        android:textColor="@color/ghostOnSurfaceMuted"
+                        android:textSize="11sp" />
+
+                    <!-- Password fields container (for Email/Password accounts) -->
+                    <RelativeLayout
+                        android:id="@+id/layout_password_fields"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tv_section_password_desc"
+                        android:layout_marginTop="10dp">
+
+                        <!-- Current Password -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_current_password"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Current Password"
+                            app:boxStrokeColor="@color/ghostPrimary"
+                            app:hintTextColor="@color/ghostOnSurfaceMuted"
+                            app:passwordToggleEnabled="true"
+                            app:startIconDrawable="@android:drawable/ic_lock_lock"
+                            app:startIconTint="@color/ghostOnSurfaceMuted">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/et_current_password"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textPassword"
+                                android:maxLines="1"
+                                android:textColor="@color/ghostOnSurface" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- New Password -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_new_password"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_below="@id/til_current_password"
+                            android:layout_marginTop="10dp"
+                            android:hint="New Password (min 6 characters)"
+                            app:boxStrokeColor="@color/ghostPrimary"
+                            app:hintTextColor="@color/ghostOnSurfaceMuted"
+                            app:passwordToggleEnabled="true"
+                            app:startIconDrawable="@android:drawable/ic_lock_lock"
+                            app:startIconTint="@color/ghostPrimary">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/et_new_password"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textPassword"
+                                android:maxLines="1"
+                                android:textColor="@color/ghostOnSurface" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- Confirm New Password -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_confirm_password"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_below="@id/til_new_password"
+                            android:layout_marginTop="10dp"
+                            android:hint="Confirm New Password"
+                            app:boxStrokeColor="@color/ghostPrimary"
+                            app:hintTextColor="@color/ghostOnSurfaceMuted"
+                            app:passwordToggleEnabled="true"
+                            app:startIconDrawable="@android:drawable/ic_lock_lock"
+                            app:startIconTint="@color/ghostPrimary">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/et_confirm_password"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textPassword"
+                                android:maxLines="1"
+                                android:textColor="@color/ghostOnSurface" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- Update Password Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_update_password"
+                            style="@style/Button.GhostDocs.Primary"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:layout_below="@id/til_confirm_password"
+                            android:layout_marginTop="12dp"
+                            android:text="🔒 Change Password"
+                            android:textSize="13sp" />
+
+                        <!-- Send Password Reset Email Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_send_reset_email"
+                            style="@style/Button.GhostDocs.Outlined"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:layout_below="@id/btn_update_password"
+                            android:layout_marginTop="8dp"
+                            android:text="📧 Send Password Reset Email"
+                            android:textSize="12sp" />
+
+                    </RelativeLayout>
+
+                    <!-- Google Account Info (shown when user signed in via Google) -->
+                    <RelativeLayout
+                        android:id="@+id/layout_google_account"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tv_section_password_desc"
+                        android:layout_marginTop="12dp"
+                        android:background="@color/ghostSurfaceVariant"
+                        android:padding="12dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:id="@+id/tv_google_icon"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_centerVertical="true"
+                            android:text="🌐"
+                            android:textSize="20sp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_toEndOf="@id/tv_google_icon"
+                            android:layout_marginStart="10dp"
+                            android:text="Signed in with Google OAuth. Your password and multi-factor authentication are managed through your Google Account."
+                            android:textColor="@color/ghostOnSurface"
+                            android:textSize="12sp" />
+                    </RelativeLayout>
+
+                </RelativeLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── Card 4: Vault & Account Overview ───────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_vault_stats"
+                style="@style/Card.GhostDocs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/card_security"
+                android:layout_marginTop="14dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/tv_section_stats_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🛡️ Vault Security Status"
+                        android:textColor="@color/ghostPrimary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <!-- Stats Row 1: Documents -->
+                    <RelativeLayout
+                        android:id="@+id/row_stat_docs"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tv_section_stats_title"
+                        android:layout_marginTop="10dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Encrypted Vault Documents:"
+                            android:textColor="@color/ghostOnSurfaceMuted"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/tv_stat_docs_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentEnd="true"
+                            android:text="Loading..."
+                            android:textColor="@color/ghostPrimary"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </RelativeLayout>
+
+                    <!-- Stats Row 2: Encryption standard -->
+                    <RelativeLayout
+                        android:id="@+id/row_stat_algo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/row_stat_docs"
+                        android:layout_marginTop="6dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Encryption Standard:"
+                            android:textColor="@color/ghostOnSurfaceMuted"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentEnd="true"
+                            android:text="AES-256-GCM (Hardware)"
+                            android:textColor="@color/ghostSuccess"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </RelativeLayout>
+
+                    <!-- Stats Row 3: Account ID -->
+                    <RelativeLayout
+                        android:id="@+id/row_stat_uid"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/row_stat_algo"
+                        android:layout_marginTop="6dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Account UID:"
+                            android:textColor="@color/ghostOnSurfaceMuted"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/tv_user_id"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentEnd="true"
+                            android:text="UID"
+                            android:textColor="@color/ghostOnSurface"
+                            android:textSize="12sp" />
+                    </RelativeLayout>
+
+                </RelativeLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── Card 5: Account Actions ────────────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_account_actions"
+                style="@style/Card.GhostDocs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/card_vault_stats"
+                android:layout_marginTop="14dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_profile_sign_out"
+                        style="@style/Button.GhostDocs.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:text="⇥ Sign Out of GhostDocs"
+                        android:textSize="13sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_delete_account"
+                        style="@style/Button.GhostDocs.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_below="@id/btn_profile_sign_out"
+                        android:layout_marginTop="8dp"
+                        android:strokeColor="@color/ghostError"
+                        android:text="🗑️ Delete Account &amp; Vault Data"
+                        android:textColor="@color/ghostError"
+                        android:textSize="12sp" />
+
+                </RelativeLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </RelativeLayout>
+    </ScrollView>
+
+    <!-- ── 3. Loading Progress Overlay ────────────────────────────────────── -->
+    <RelativeLayout
+        android:id="@+id/layout_progress_overlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#D9000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="gone">
+
+        <ProgressBar
+            android:id="@+id/pb_profile_loading"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_centerInParent="true"
+            android:indeterminateTint="@color/ghostPrimary" />
+
+        <TextView
+            android:id="@+id/tv_loading_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/pb_profile_loading"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="16dp"
+            android:text="Updating Profile..."
+            android:textColor="@color/ghostOnSurface"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+    </RelativeLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

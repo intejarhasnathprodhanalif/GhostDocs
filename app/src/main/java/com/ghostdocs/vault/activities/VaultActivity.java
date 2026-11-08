@@ -317,6 +317,13 @@ public class VaultActivity extends AppCompatActivity
     }
 
     private void setClickListeners() {
+        // Toolbar — user profile
+        View btnOpenProfile = findViewById(R.id.btn_open_profile);
+        if (btnOpenProfile != null) {
+            btnOpenProfile.setOnClickListener(v ->
+                    startActivity(new Intent(this, ProfileActivity.class)));
+        }
+
         // Toolbar — import old photos
         View btnImportPhotos = findViewById(R.id.btn_import_photos);
         if (btnImportPhotos != null) {

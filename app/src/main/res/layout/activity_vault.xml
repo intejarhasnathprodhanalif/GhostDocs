@@ -88,6 +88,19 @@
             android:textSize="20sp"
             android:contentDescription="Import old photos" />
 
+        <!-- User Profile button -->
+        <TextView
+            android:id="@+id/btn_open_profile"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toStartOf="@id/btn_import_photos"
+            android:padding="8dp"
+            android:text="👤"
+            android:textColor="@color/ghostPrimary"
+            android:textSize="20sp"
+            android:contentDescription="User profile" />
+
     </RelativeLayout>
 
     <!-- ── Stats Bar ──────────────────────────────────────────────────────── -->
