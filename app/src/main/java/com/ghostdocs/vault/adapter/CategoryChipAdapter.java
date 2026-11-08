@@ -138,3 +138,4 @@ public class CategoryChipAdapter extends RecyclerView.Adapter<CategoryChipAdapte
         }
     }
 }
+

@@ -72,3 +72,4 @@ public class CategoryChipModel {
         return emoji + " " + name + " (" + count + ")";
     }
 }
+

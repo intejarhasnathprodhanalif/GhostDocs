@@ -407,13 +407,25 @@ public class VaultActivity extends AppCompatActivity
     public void onDocumentClick(DocumentModel document, int position) {
         Log.d(TAG, "Document tapped: " + document.getTitle());
 
+        boolean hasValidPdf = document.getPdfPath() != null
+                && !document.getPdfPath().isEmpty()
+                && new File(document.getPdfPath()).exists();
+
+        boolean hasValidEncrypted = document.getEncryptedPath() != null
+                && !document.getEncryptedPath().isEmpty()
+                && new File(document.getEncryptedPath()).exists();
+
+        // If no encrypted data or PDF exists on disk, auto-remove this orphaned document
+        if (!hasValidPdf && !hasValidEncrypted) {
+            handleMissingDocumentData(document);
+            return;
+        }
+
         // If searchable PDF exists, open it directly in system viewer
-        if (document.getPdfPath() != null && !document.getPdfPath().isEmpty()) {
+        if (hasValidPdf) {
             File pdfFile = new File(document.getPdfPath());
-            if (pdfFile.exists()) {
-                PdfExportHelper.openPdf(this, pdfFile);
-                return;
-            }
+            PdfExportHelper.openPdf(this, pdfFile);
+            return;
         }
 
         // Otherwise generate on-demand or show info
@@ -752,7 +764,8 @@ public class VaultActivity extends AppCompatActivity
             }
         }
 
-        Toast.makeText(this, "No encrypted data found to export.", Toast.LENGTH_SHORT).show();
+        // No encrypted data or PDF found on disk -> auto-remove orphaned document
+        handleMissingDocumentData(document);
     }
 
     private void showPdfActionDialog(File pdfFile, String title) {
@@ -774,16 +787,16 @@ public class VaultActivity extends AppCompatActivity
      * via Quick Share/WhatsApp/Bluetooth or save it directly to the device Gallery.
      */
     private void exportOrShareJpg(DocumentModel document) {
-        if (document.getEncryptedPath() == null || document.getEncryptedPath().isEmpty()) {
-            Toast.makeText(this, "No encrypted data found to export.", Toast.LENGTH_SHORT).show();
+        boolean hasValidEncrypted = document.getEncryptedPath() != null
+                && !document.getEncryptedPath().isEmpty()
+                && new File(document.getEncryptedPath()).exists();
+
+        if (!hasValidEncrypted) {
+            handleMissingDocumentData(document);
             return;
         }
 
         File encFile = new File(document.getEncryptedPath());
-        if (!encFile.exists()) {
-            Toast.makeText(this, "Encrypted file not found on disk.", Toast.LENGTH_SHORT).show();
-            return;
-        }
 
         new AlertDialog.Builder(this)
                 .setTitle("Export as JPG Image")
@@ -792,6 +805,58 @@ public class VaultActivity extends AppCompatActivity
                 .setNeutralButton("Save to Gallery", (dialog, which) -> saveJpgToGallery(document, encFile))
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    /**
+     * Automatically removes a document entry from the vault when its underlying
+     * encrypted data is missing from disk, rather than displaying an error message.
+     */
+    private void handleMissingDocumentData(@NonNull DocumentModel document) {
+        Log.w(TAG, "No encrypted data found on device for document: " + document.getTitle()
+                + " (ID: " + document.getDocId() + "). Automatically removing from vault.");
+
+        // 1. Remove immediately from local memory and refresh UI
+        for (int i = masterDocumentList.size() - 1; i >= 0; i--) {
+            DocumentModel d = masterDocumentList.get(i);
+            if (document.getDocId() != null && document.getDocId().equals(d.getDocId())) {
+                masterDocumentList.remove(i);
+                break;
+            }
+        }
+        applyFilters();
+        updateCategoryCounts();
+
+        // 2. Clean up any lingering files if paths were partially present
+        if (document.getEncryptedPath() != null && !document.getEncryptedPath().isEmpty()) {
+            File encFile = new File(document.getEncryptedPath());
+            if (encFile.exists()) {
+                encFile.delete();
+            }
+        }
+        if (document.getPdfPath() != null && !document.getPdfPath().isEmpty()) {
+            File pdfFile = new File(document.getPdfPath());
+            if (pdfFile.exists()) {
+                pdfFile.delete();
+            }
+        }
+
+        // 3. Delete metadata record from Cloud Firestore
+        FirebaseUser user = firebaseAuth.getCurrentUser();
+        if (user != null && document.getDocId() != null) {
+            firestore.collection("users")
+                    .document(user.getUid())
+                    .collection("documents")
+                    .document(document.getDocId())
+                    .delete()
+                    .addOnSuccessListener(unused ->
+                            Log.d(TAG, "Orphaned document metadata deleted from Firestore: " + document.getDocId()))
+                    .addOnFailureListener(e ->
+                            Log.e(TAG, "Failed to delete orphaned document metadata from Firestore", e));
+        }
+
+        Toast.makeText(this,
+                "No encrypted data found on device. Document removed from vault.",
+                Toast.LENGTH_SHORT).show();
     }
 
     private void shareJpgImage(DocumentModel document, File encFile) {
@@ -951,6 +1016,24 @@ public class VaultActivity extends AppCompatActivity
                 Log.d(TAG, "Local encrypted file deleted from disk: " + deleted);
             }
         }
+
+        // Clean up PDF on device
+        if (document.getPdfPath() != null && !document.getPdfPath().isEmpty()) {
+            java.io.File pdfFile = new java.io.File(document.getPdfPath());
+            if (pdfFile.exists()) {
+                pdfFile.delete();
+            }
+        }
+
+        for (int i = masterDocumentList.size() - 1; i >= 0; i--) {
+            DocumentModel d = masterDocumentList.get(i);
+            if (document.getDocId() != null && document.getDocId().equals(d.getDocId())) {
+                masterDocumentList.remove(i);
+                break;
+            }
+        }
+        applyFilters();
+        updateCategoryCounts();
 
         firestore.collection("users")
                 .document(user.getUid())

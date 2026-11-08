@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * DocumentModel — Secure Document Data Transfer Object
@@ -237,6 +238,19 @@ public class DocumentModel {
             e.printStackTrace();
         }
         return json;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        DocumentModel that = (DocumentModel) o;
+        return Objects.equals(docId, that.docId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(docId);
     }
 
     /**
