@@ -44,6 +44,10 @@
 
     <!-- ── Settings ────────────────────────────────────────────────────── -->
     <string name="settings_title">Settings</string>
+    <string name="settings_theme">App Theme</string>
+    <string name="theme_dark">Dark Mode (Ghost Aesthetic)</string>
+    <string name="theme_light">Light Mode (Clean Vault)</string>
+    <string name="theme_system">Follow System</string>
     <string name="settings_auto_start">Auto-start watcher on boot</string>
     <string name="settings_delete_original">Auto-delete original after encryption</string>
     <string name="settings_ocr_sensitivity">OCR Sensitivity</string>

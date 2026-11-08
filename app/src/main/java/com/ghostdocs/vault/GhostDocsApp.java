@@ -49,6 +49,9 @@ public class GhostDocsApp extends Application {
         super.onCreate();
         instance = this;
 
+        // Apply user-configured theme (Dark, Light, or Follow System)
+        com.ghostdocs.vault.util.ThemeHelper.applyTheme(this);
+
         // Configure Firestore offline persistence (required by spec)
         configureFirestore();
 

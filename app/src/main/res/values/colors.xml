@@ -1,43 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ── Brand — Dark ghost aesthetic ──────────────────────────────────── -->
+    <!-- ── Brand — Clean Light Vault Aesthetic (Day / Default Mode) ─────── -->
     <!-- Primary backgrounds -->
-    <color name="ghostDarkBg">#0D0D0D</color>         <!-- App background -->
-    <color name="ghostSurface">#1A1A2E</color>         <!-- Cards, dialogs -->
-    <color name="ghostSurfaceVariant">#16213E</color>  <!-- Elevated cards -->
-    <color name="ghostDivider">#2A2A3E</color>         <!-- Dividers & outlines -->
+    <color name="ghostDarkBg">#F6F8FB</color>         <!-- Crisp, soft off-white canvas -->
+    <color name="ghostSurface">#FFFFFF</color>         <!-- Pure white cards, toolbars, dialogs -->
+    <color name="ghostSurfaceVariant">#EEF2F6</color>  <!-- Subtle card elevation / chips -->
+    <color name="ghostDivider">#E2E8F0</color>         <!-- Soft slate border / dividers -->
 
-    <!-- Primary accent: electric cyan -->
-    <color name="ghostPrimary">#00D4FF</color>
-    <color name="ghostPrimaryVariant">#0098B8</color>
-    <color name="ghostPrimaryDark">#006E87</color>
+    <!-- Primary accent: deep vibrant azure cyan (high contrast on light canvas) -->
+    <color name="ghostPrimary">#0088CC</color>
+    <color name="ghostPrimaryVariant">#0073B0</color>
+    <color name="ghostPrimaryDark">#00598A</color>
 
-    <!-- Secondary accent: danger red -->
-    <color name="ghostAccent">#FF4C6A</color>
-    <color name="ghostAccentVariant">#CC2E4A</color>
+    <!-- Secondary accent: vivid danger red -->
+    <color name="ghostAccent">#E53935</color>
+    <color name="ghostAccentVariant">#C62828</color>
 
     <!-- Text / icon on colored surfaces -->
-    <color name="ghostOnPrimary">#000000</color>
-    <color name="ghostOnSurface">#FFFFFF</color>
-    <color name="ghostOnSurfaceMuted">#9E9E9E</color>
-    <color name="ghostOnSurfaceDisabled">#616161</color>
+    <color name="ghostOnPrimary">#FFFFFF</color>       <!-- White text on primary buttons -->
+    <color name="ghostOnSurface">#1E293B</color>       <!-- Deep slate-900 (crisp readable text) -->
+    <color name="ghostOnSurfaceMuted">#64748B</color>   <!-- Slate-500 (readable secondary text) -->
+    <color name="ghostOnSurfaceDisabled">#94A3B8</color><!-- Slate-400 (disabled text) -->
 
     <!-- Status colors -->
-    <color name="ghostSuccess">#00E676</color>         <!-- Watcher active / encrypted -->
-    <color name="ghostWarning">#FFD600</color>         <!-- Pending / in progress -->
-    <color name="ghostError">#FF4C6A</color>           <!-- Errors / alerts -->
+    <color name="ghostSuccess">#10B981</color>         <!-- Emerald green -->
+    <color name="ghostWarning">#D97706</color>         <!-- Amber warning -->
+    <color name="ghostError">#EF4444</color>           <!-- Rose error -->
 
     <!-- System bar colors -->
-    <color name="statusBar">#000000</color>
-    <color name="navBar">#0D0D0D</color>
+    <color name="statusBar">#FFFFFF</color>
+    <color name="navBar">#F6F8FB</color>
 
     <!-- RecyclerView item gradient overlay -->
     <color name="cardOverlayStart">#00000000</color>   <!-- Transparent -->
-    <color name="cardOverlayEnd">#CC000000</color>     <!-- Dark scrim -->
+    <color name="cardOverlayEnd">#99000000</color>     <!-- Dark scrim -->
 
     <!-- Widget colors -->
-    <color name="widgetBackground">#CC1A1A2E</color>   <!-- Semi-transparent surface -->
-    <color name="widgetText">#FFFFFF</color>
-    <color name="widgetSubtext">#B0BEC5</color>
+    <color name="widgetBackground">#EEFFFFFF</color>
+    <color name="widgetText">#1E293B</color>
+    <color name="widgetSubtext">#64748B</color>
 </resources>
-

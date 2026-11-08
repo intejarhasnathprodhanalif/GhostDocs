@@ -20,6 +20,7 @@ import com.ghostdocs.vault.adapter.LogListAdapter;
 import com.ghostdocs.vault.security.AesEncryptionHelper;
 import com.ghostdocs.vault.tasks.VaultExecutor;
 import com.ghostdocs.vault.util.PermissionHelper;
+import com.ghostdocs.vault.util.ThemeHelper;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 
@@ -62,17 +63,18 @@ public class SettingsActivity extends AppCompatActivity {
 
     // ── Settings item indices (matches the list order) ───────────────────────
     private static final int IDX_PROFILE        = 0;
-    private static final int IDX_AUTO_START     = 1;
-    private static final int IDX_AUTO_DELETE    = 2;
-    private static final int IDX_CONFIRM_SECURE = 3;
-    private static final int IDX_EXCLUDE_NOTES  = 4;
-    private static final int IDX_IMPORT_OLD     = 5;
-    private static final int IDX_PERMISSIONS    = 6;
-    private static final int IDX_RESTORE_ALL    = 7;
-    private static final int IDX_EXPORT_PDF     = 8;
-    private static final int IDX_CLEAR_VAULT    = 9;
-    private static final int IDX_ABOUT          = 10;
-    private static final int IDX_SIGN_OUT       = 11;
+    private static final int IDX_THEME          = 1;
+    private static final int IDX_AUTO_START     = 2;
+    private static final int IDX_AUTO_DELETE    = 3;
+    private static final int IDX_CONFIRM_SECURE = 4;
+    private static final int IDX_EXCLUDE_NOTES  = 5;
+    private static final int IDX_IMPORT_OLD     = 6;
+    private static final int IDX_PERMISSIONS    = 7;
+    private static final int IDX_RESTORE_ALL    = 8;
+    private static final int IDX_EXPORT_PDF     = 9;
+    private static final int IDX_CLEAR_VAULT    = 10;
+    private static final int IDX_ABOUT          = 11;
+    private static final int IDX_SIGN_OUT       = 12;
 
     // ── Views ────────────────────────────────────────────────────────────────
     private ListView        lvSettings;
@@ -125,33 +127,36 @@ public class SettingsActivity extends AppCompatActivity {
                 "👤 User Profile & Security",
                 "Username, Password & Account"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 1
+                "🌓 App Theme",
+                ThemeHelper.getThemeDisplayName(this)));
+        settingsItems.add(new LogListAdapter.LogItem(                               // 2
                 getString(R.string.settings_auto_start),
                 autoStart ? "ON" : "OFF"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 2
+        settingsItems.add(new LogListAdapter.LogItem(                               // 3
                 getString(R.string.settings_delete_original),
                 autoDelete ? "ON" : "OFF"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 3
+        settingsItems.add(new LogListAdapter.LogItem(                               // 4
                 "Ask Before Securing (Prompt on Capture)",
                 confirmSecure ? "ON (Prompt First)" : "OFF (Auto-Vault)"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 4
+        settingsItems.add(new LogListAdapter.LogItem(                               // 5
                 "Exclude Class Notes & Lecture Photos",
                 excludeNotes ? "ON (Saved in Gallery)" : "OFF"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 5
+        settingsItems.add(new LogListAdapter.LogItem(                               // 6
                 "🔒 Scan & Secure Old Photos",
                 "Import pre-existing screenshots"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 6
+        settingsItems.add(new LogListAdapter.LogItem(                               // 7
                 "Storage Permissions",
                 PermissionHelper.hasAllRequiredPermissions(this) ? "✓ Granted" : "⚠ Required"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 7
+        settingsItems.add(new LogListAdapter.LogItem(                               // 8
                 "📥 Restore All to Gallery (Unvault for Uninstall)",
                 "Restores all photos to Gallery"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 8
-                getString(R.string.settings_export_pdf)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 9
-                getString(R.string.settings_clear_vault)));
+                getString(R.string.settings_export_pdf)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 10
-                getString(R.string.settings_about)));
+                getString(R.string.settings_clear_vault)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 11
+                getString(R.string.settings_about)));
+        settingsItems.add(new LogListAdapter.LogItem(                               // 12
                 "Sign Out", "→"));
     }
 
@@ -182,6 +187,7 @@ public class SettingsActivity extends AppCompatActivity {
     private void handleSettingClick(int position) {
         switch (position) {
             case IDX_PROFILE:        openProfile();                break;
+            case IDX_THEME:          showThemeDialog();            break;
             case IDX_AUTO_START:     toggleAutoStart();            break;
             case IDX_AUTO_DELETE:    toggleAutoDelete();           break;
             case IDX_CONFIRM_SECURE: toggleConfirmSecure();        break;
@@ -198,6 +204,49 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void openProfile() {
         startActivity(new android.content.Intent(this, ProfileActivity.class));
+    }
+
+    /**
+     * Displays a single-choice dialog to switch between Dark Mode, Light Mode, and System Default.
+     */
+    private void showThemeDialog() {
+        String currentMode = ThemeHelper.getThemeMode(this);
+        int selectedIndex = 0;
+        if (ThemeHelper.THEME_LIGHT.equals(currentMode)) {
+            selectedIndex = 1;
+        } else if (ThemeHelper.THEME_SYSTEM.equals(currentMode)) {
+            selectedIndex = 2;
+        }
+
+        String[] options = new String[] {
+                "🌙 Dark Mode (Ghost Aesthetic)",
+                "☀️ Light Mode (Clean Vault)",
+                "⚙️ Follow System"
+        };
+
+        new AlertDialog.Builder(this)
+                .setTitle("🌓 Choose App Theme")
+                .setSingleChoiceItems(options, selectedIndex, (dialog, which) -> {
+                    String chosenMode;
+                    switch (which) {
+                        case 1:
+                            chosenMode = ThemeHelper.THEME_LIGHT;
+                            break;
+                        case 2:
+                            chosenMode = ThemeHelper.THEME_SYSTEM;
+                            break;
+                        case 0:
+                        default:
+                            chosenMode = ThemeHelper.THEME_DARK;
+                            break;
+                    }
+                    ThemeHelper.setThemeMode(this, chosenMode);
+                    settingsItems.get(IDX_THEME).setValue(ThemeHelper.getThemeDisplayName(this));
+                    settingsAdapter.notifyDataSetChanged();
+                    dialog.dismiss();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void openImportOldPhotos() {

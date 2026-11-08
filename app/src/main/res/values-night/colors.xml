@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Brand — Dark Ghost Aesthetic (Night Mode) ─────────────────────── -->
+    <!-- Primary backgrounds -->
+    <color name="ghostDarkBg">#0D0D0D</color>         <!-- App background -->
+    <color name="ghostSurface">#1A1A2E</color>         <!-- Cards, dialogs -->
+    <color name="ghostSurfaceVariant">#16213E</color>  <!-- Elevated cards -->
+    <color name="ghostDivider">#2A2A3E</color>         <!-- Dividers & outlines -->
+
+    <!-- Primary accent: electric cyan -->
+    <color name="ghostPrimary">#00D4FF</color>
+    <color name="ghostPrimaryVariant">#0098B8</color>
+    <color name="ghostPrimaryDark">#006E87</color>
+
+    <!-- Secondary accent: danger red -->
+    <color name="ghostAccent">#FF4C6A</color>
+    <color name="ghostAccentVariant">#CC2E4A</color>
+
+    <!-- Text / icon on colored surfaces -->
+    <color name="ghostOnPrimary">#000000</color>
+    <color name="ghostOnSurface">#FFFFFF</color>
+    <color name="ghostOnSurfaceMuted">#9E9E9E</color>
+    <color name="ghostOnSurfaceDisabled">#616161</color>
+
+    <!-- Status colors -->
+    <color name="ghostSuccess">#00E676</color>         <!-- Watcher active / encrypted -->
+    <color name="ghostWarning">#FFD600</color>         <!-- Pending / in progress -->
+    <color name="ghostError">#FF4C6A</color>           <!-- Errors / alerts -->
+
+    <!-- System bar colors -->
+    <color name="statusBar">#000000</color>
+    <color name="navBar">#0D0D0D</color>
+
+    <!-- RecyclerView item gradient overlay -->
+    <color name="cardOverlayStart">#00000000</color>   <!-- Transparent -->
+    <color name="cardOverlayEnd">#CC000000</color>     <!-- Dark scrim -->
+
+    <!-- Widget colors -->
+    <color name="widgetBackground">#CC1A1A2E</color>   <!-- Semi-transparent surface -->
+    <color name="widgetText">#FFFFFF</color>
+    <color name="widgetSubtext">#B0BEC5</color>
+</resources>

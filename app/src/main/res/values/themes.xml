@@ -2,10 +2,8 @@
 <resources>
 
     <!-- ================================================================
-         Base Application Theme
+         Base Application Theme (Day / Light Mode)
          Parent: MaterialComponents.DayNight.NoActionBar
-         GhostDocs uses a fully custom dark toolbar, so we suppress
-         the system ActionBar entirely.
          ================================================================ -->
     <style name="Theme.GhostDocs" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Brand colors -->
@@ -26,19 +24,18 @@
         <!-- System bars -->
         <item name="android:statusBarColor">@color/statusBar</item>
         <item name="android:navigationBarColor">@color/navBar</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
 
-        <!-- Typography: use system default; custom fonts added in Step 2 -->
+        <!-- Typography -->
         <item name="android:fontFamily">sans-serif</item>
 
-        <!-- Ripple: use primary color for touch feedback -->
-        <item name="colorControlHighlight">#2000D4FF</item>
+        <!-- Ripple -->
+        <item name="colorControlHighlight">#200088CC</item>
     </style>
 
     <!-- ================================================================
          Splash / Launch Theme
-         Applied to LaunchActivity. Full-screen, no flicker.
          ================================================================ -->
     <style name="Theme.GhostDocs.Splash" parent="Theme.GhostDocs">
         <item name="android:windowFullscreen">false</item>
@@ -47,7 +44,7 @@
     </style>
 
     <!-- ================================================================
-         Dialog Theme — used for BiometricPrompt styling
+         Dialog Theme
          ================================================================ -->
     <style name="Theme.GhostDocs.Dialog" parent="Theme.MaterialComponents.DayNight.Dialog">
         <item name="colorPrimary">@color/ghostPrimary</item>
@@ -96,10 +93,9 @@
     <style name="Card.GhostDocs" parent="Widget.MaterialComponents.CardView">
         <item name="cardBackgroundColor">@color/ghostSurface</item>
         <item name="cardCornerRadius">16dp</item>
-        <item name="cardElevation">4dp</item>
+        <item name="cardElevation">2dp</item>
         <item name="strokeColor">@color/ghostDivider</item>
         <item name="strokeWidth">1dp</item>
     </style>
 
 </resources>
-
