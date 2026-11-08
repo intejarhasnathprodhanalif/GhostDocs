@@ -433,7 +433,7 @@ public class VaultActivity extends AppCompatActivity
     }
 
     /**
-     * Long press — show contextual menu (rename, share QR, export JPG, export PDF, delete).
+     * Long press — show contextual menu (move to gallery, export PDF, share QR, rename, delete).
      */
     @Override
     public void onDocumentLongClick(DocumentModel document, int position) {
@@ -441,17 +441,17 @@ public class VaultActivity extends AppCompatActivity
         new AlertDialog.Builder(this)
                 .setTitle(document.getTitle())
                 .setItems(new String[]{
-                        "✏️ Rename Document",
-                        "📱 Share QR (Air-Gapped)",
-                        "🖼️ Export / Share JPG",
+                        "🖼️ Move to Gallery (Export JPG)",
                         "📄 Open / Export PDF",
-                        "🗑 Delete"
+                        "📱 Share QR (Air-Gapped)",
+                        "✏️ Rename Document",
+                        "🗑 Delete from Vault"
                 }, (dialog, which) -> {
                     switch (which) {
-                        case 0: promptRenameDocument(document); break;
-                        case 1: showQrShareDialog(document); break;
-                        case 2: exportOrShareJpg(document); break;
-                        case 3: exportOrSharePdf(document); break;
+                        case 0: exportOrShareJpg(document); break;
+                        case 1: exportOrSharePdf(document); break;
+                        case 2: showQrShareDialog(document); break;
+                        case 3: promptRenameDocument(document); break;
                         case 4: confirmDeleteDocument(document); break;
                     }
                 })
@@ -784,7 +784,7 @@ public class VaultActivity extends AppCompatActivity
 
     /**
      * Exports the document as a high-resolution JPG image, allowing the user to share it
-     * via Quick Share/WhatsApp/Bluetooth or save it directly to the device Gallery.
+     * via Quick Share/WhatsApp/Bluetooth or save/move it directly to the device Gallery.
      */
     private void exportOrShareJpg(DocumentModel document) {
         boolean hasValidEncrypted = document.getEncryptedPath() != null
@@ -799,10 +799,10 @@ public class VaultActivity extends AppCompatActivity
         File encFile = new File(document.getEncryptedPath());
 
         new AlertDialog.Builder(this)
-                .setTitle("Export as JPG Image")
-                .setMessage("Export \"" + document.getTitle() + "\" as a JPG image:")
-                .setPositiveButton("Share JPG", (dialog, which) -> shareJpgImage(document, encFile))
-                .setNeutralButton("Save to Gallery", (dialog, which) -> saveJpgToGallery(document, encFile))
+                .setTitle("Move to Gallery / Share JPG")
+                .setMessage("Move \"" + document.getTitle() + "\" to device gallery or share via apps:")
+                .setPositiveButton("Move to Gallery", (dialog, which) -> saveJpgToGallery(document, encFile))
+                .setNeutralButton("Share JPG", (dialog, which) -> shareJpgImage(document, encFile))
                 .setNegativeButton("Cancel", null)
                 .show();
     }
@@ -936,8 +936,24 @@ public class VaultActivity extends AppCompatActivity
                     }
                 }
 
-                runOnUiThread(() -> Toast.makeText(VaultActivity.this,
-                        "Saved to Gallery in Pictures/GhostDocs!", Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> {
+                    Toast.makeText(VaultActivity.this,
+                            "Photo saved to Gallery in Pictures/GhostDocs", Toast.LENGTH_SHORT).show();
+
+                    // Prompt user if they want to remove the photo from the secure vault
+                    new AlertDialog.Builder(VaultActivity.this)
+                            .setTitle("Remove from Secure Vault?")
+                            .setMessage("The photo \"" + document.getTitle() + "\" has been successfully moved to your device gallery.\n\nDo you want to remove it from the secure vault?")
+                            .setPositiveButton("Yes, Remove", (dialog, which) -> {
+                                deleteDocument(document, "Photo moved to Gallery and removed from vault.");
+                            })
+                            .setNegativeButton("No, Keep in Vault", (dialog, which) -> {
+                                Toast.makeText(VaultActivity.this,
+                                        "Photo moved to Gallery. Vault copy preserved.", Toast.LENGTH_SHORT).show();
+                            })
+                            .setCancelable(false)
+                            .show();
+                });
 
             } catch (Exception e) {
                 Log.e(TAG, "Error saving JPG to Gallery", e);
@@ -1000,11 +1016,13 @@ public class VaultActivity extends AppCompatActivity
     }
 
     /**
-     * Deletes the Firestore metadata document for the given entry.
-     * The encrypted file on disk is left in place here — full cleanup
-     * (including encrypted file deletion) is handled in Step 7.
+     * Deletes the Firestore metadata document and physical files for the given entry.
      */
     private void deleteDocument(DocumentModel document) {
+        deleteDocument(document, "Document and encrypted file deleted.");
+    }
+
+    private void deleteDocument(DocumentModel document, @Nullable String successMessage) {
         FirebaseUser user = firebaseAuth.getCurrentUser();
         if (user == null || document.getDocId() == null) return;
 
@@ -1042,7 +1060,10 @@ public class VaultActivity extends AppCompatActivity
                 .delete()
                 .addOnSuccessListener(unused -> {
                     Log.d(TAG, "Document deleted from Firestore: " + document.getDocId());
-                    Toast.makeText(this, "Document and encrypted file deleted.", Toast.LENGTH_SHORT).show();
+                    String msg = (successMessage != null && !successMessage.isEmpty())
+                            ? successMessage
+                            : "Document and encrypted file deleted.";
+                    Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
                     // The SnapshotListener will automatically refresh the RecyclerView
                 })
                 .addOnFailureListener(e -> {
