@@ -720,22 +720,44 @@ public class VaultActivity extends AppCompatActivity
     }
 
     /**
-     * Exports or shares the searchable PDF.
+     * Exports or shares the searchable PDF or native PDF document.
      */
     private void exportOrSharePdf(DocumentModel document) {
         // If file already exists on disk
         if (document.getPdfPath() != null && !document.getPdfPath().isEmpty()) {
             File existingPdf = new File(document.getPdfPath());
             if (existingPdf.exists()) {
-                showPdfActionDialog(existingPdf, document.getTitle());
+                showPdfActionDialog(existingPdf, document.getTitle(), document);
                 return;
             }
         }
 
-        // If PDF not generated yet, generate on-demand from encrypted file
+        // If PDF not generated yet, generate or decrypt on-demand from encrypted file
         if (document.getEncryptedPath() != null && !document.getEncryptedPath().isEmpty()) {
             File encFile = new File(document.getEncryptedPath());
             if (encFile.exists()) {
+                boolean isNativePdf = (document.getTags() != null && document.getTags().contains("PDF"))
+                        || (document.getTitle() != null && document.getTitle().toLowerCase().endsWith(".pdf"));
+
+                if (isNativePdf) {
+                    Toast.makeText(this, "Decrypting PDF document...", Toast.LENGTH_SHORT).show();
+                    VaultExecutor.getInstance().execute(() -> {
+                        try {
+                            File exportDir = new File(getExternalFilesDir(null), "GhostDocs/exports");
+                            if (!exportDir.exists()) exportDir.mkdirs();
+                            String safeTitle = sanitizeFilename(document.getTitle());
+                            File targetPdf = new File(exportDir, safeTitle + "_" + document.getDocId().substring(0, Math.min(8, document.getDocId().length())) + ".pdf");
+                            AesEncryptionHelper.getInstance().decryptFileToFile(encFile, targetPdf);
+                            document.setPdfPath(targetPdf.getAbsolutePath());
+                            runOnUiThread(() -> showPdfActionDialog(targetPdf, document.getTitle(), document));
+                        } catch (Exception e) {
+                            Log.e(TAG, "Failed to decrypt PDF document", e);
+                            runOnUiThread(() -> Toast.makeText(VaultActivity.this, "Failed to decrypt PDF: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                        }
+                    });
+                    return;
+                }
+
                 Toast.makeText(this, "Generating searchable PDF...", Toast.LENGTH_SHORT).show();
 
                 PdfGeneratorTask task = new PdfGeneratorTask(
@@ -748,7 +770,7 @@ public class VaultActivity extends AppCompatActivity
                             @Override
                             public void onTaskSuccess(File pdfResult) {
                                 document.setPdfPath(pdfResult.getAbsolutePath());
-                                showPdfActionDialog(pdfResult, document.getTitle());
+                                showPdfActionDialog(pdfResult, document.getTitle(), document);
                             }
 
                             @Override
@@ -768,14 +790,48 @@ public class VaultActivity extends AppCompatActivity
         handleMissingDocumentData(document);
     }
 
-    private void showPdfActionDialog(File pdfFile, String title) {
+    private void showPdfActionDialog(File pdfFile, String title, DocumentModel document) {
         new AlertDialog.Builder(this)
                 .setTitle(title)
-                .setMessage("Searchable PDF ready. What would you like to do?")
-                .setPositiveButton("Open PDF", (d, w) -> PdfExportHelper.openPdf(this, pdfFile))
-                .setNeutralButton("Share", (d, w) -> PdfExportHelper.sharePdf(this, pdfFile, title))
-                .setNegativeButton("Cancel", null)
+                .setItems(new String[]{
+                        "📖 Open PDF",
+                        "📤 Share PDF",
+                        "📥 Move to Downloads",
+                        "❌ Cancel"
+                }, (dialog, which) -> {
+                    switch (which) {
+                        case 0: PdfExportHelper.openPdf(this, pdfFile); break;
+                        case 1: PdfExportHelper.sharePdf(this, pdfFile, title); break;
+                        case 2: movePdfToDownloads(document, pdfFile); break;
+                        case 3: dialog.dismiss(); break;
+                    }
+                })
                 .show();
+    }
+
+    private void movePdfToDownloads(DocumentModel document, File pdfFile) {
+        Toast.makeText(this, "Saving PDF to Downloads...", Toast.LENGTH_SHORT).show();
+        VaultExecutor.getInstance().execute(() -> {
+            boolean saved = PdfExportHelper.savePdfToDownloads(this, pdfFile, document.getTitle());
+            runOnUiThread(() -> {
+                if (saved) {
+                    Toast.makeText(this, "PDF saved to Downloads/GhostDocs", Toast.LENGTH_SHORT).show();
+                    new AlertDialog.Builder(this)
+                            .setTitle("Remove from Secure Vault?")
+                            .setMessage("The PDF \"" + document.getTitle() + "\" has been moved to Downloads (Downloads/GhostDocs).\n\nDo you want to remove it from the secure vault?")
+                            .setPositiveButton("Yes, Remove", (dialog, which) -> {
+                                deleteDocument(document, "PDF moved to Downloads and removed from vault.");
+                            })
+                            .setNegativeButton("No, Keep in Vault", (dialog, which) -> {
+                                Toast.makeText(this, "PDF moved to Downloads. Vault copy preserved.", Toast.LENGTH_SHORT).show();
+                            })
+                            .setCancelable(false)
+                            .show();
+                } else {
+                    Toast.makeText(this, "Failed to save PDF to Downloads.", Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -863,8 +919,17 @@ public class VaultActivity extends AppCompatActivity
         Toast.makeText(this, "Preparing JPG image...", Toast.LENGTH_SHORT).show();
         VaultExecutor.getInstance().execute(() -> {
             try {
-                Bitmap bmp = AesEncryptionHelper.getInstance().decryptFileToBitmap(encFile);
-                if (bmp == null) throw new IOException("Decryption failed.");
+                Bitmap bmp = null;
+                boolean isNativePdf = (document.getTags() != null && document.getTags().contains("PDF"))
+                        || (document.getTitle() != null && document.getTitle().toLowerCase().endsWith(".pdf"));
+
+                if (isNativePdf && document.getPdfPath() != null && new File(document.getPdfPath()).exists()) {
+                    bmp = PdfExportHelper.renderFirstPage(this, Uri.fromFile(new File(document.getPdfPath())), 1600);
+                }
+                if (bmp == null) {
+                    bmp = AesEncryptionHelper.getInstance().decryptFileToBitmap(encFile);
+                }
+                if (bmp == null) throw new IOException("Decryption / rendering failed.");
 
                 File exportDir = new File(getCacheDir(), "shared_jpg");
                 exportDir.mkdirs();
@@ -904,8 +969,17 @@ public class VaultActivity extends AppCompatActivity
         Toast.makeText(this, "Saving JPG to Gallery...", Toast.LENGTH_SHORT).show();
         VaultExecutor.getInstance().execute(() -> {
             try {
-                Bitmap bmp = AesEncryptionHelper.getInstance().decryptFileToBitmap(encFile);
-                if (bmp == null) throw new IOException("Decryption failed.");
+                Bitmap bmp = null;
+                boolean isNativePdf = (document.getTags() != null && document.getTags().contains("PDF"))
+                        || (document.getTitle() != null && document.getTitle().toLowerCase().endsWith(".pdf"));
+
+                if (isNativePdf && document.getPdfPath() != null && new File(document.getPdfPath()).exists()) {
+                    bmp = PdfExportHelper.renderFirstPage(this, Uri.fromFile(new File(document.getPdfPath())), 1600);
+                }
+                if (bmp == null) {
+                    bmp = AesEncryptionHelper.getInstance().decryptFileToBitmap(encFile);
+                }
+                if (bmp == null) throw new IOException("Decryption / rendering failed.");
 
                 String safeName = sanitizeFilename(document.getTitle()) + "_" + System.currentTimeMillis() + ".jpg";
 

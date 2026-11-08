@@ -1,21 +1,35 @@
 package com.ghostdocs.vault.util;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.pdf.PdfRenderer;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
+import android.os.ParcelFileDescriptor;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.FileProvider;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
- * PdfExportHelper — Secure FileProvider Intent Dispatcher for PDF Export & Sharing
+ * PdfExportHelper — Secure FileProvider Intent Dispatcher & Native PDF Processing Engine
  *
- * <p>Encapsulates Android {@link FileProvider} URI translation and intent construction
- * for viewing and sharing encrypted export files.
+ * <p>Encapsulates Android {@link FileProvider} URI translation, native {@link PdfRenderer}
+ * page-1 bitmap generation (for ML Kit OCR & thumbnails), and Scoped Storage downloads export.
  */
 public final class PdfExportHelper {
 
@@ -87,5 +101,123 @@ public final class PdfExportHelper {
             Toast.makeText(context, "Could not share PDF.", Toast.LENGTH_SHORT).show();
         }
     }
-}
 
+    /**
+     * Renders the first page of a PDF into a high-quality Bitmap.
+     * Suitable for OCR, preview, and thumbnail caching.
+     *
+     * @param context Application context.
+     * @param pdfUri  Content URI of the PDF.
+     * @param maxDimension Maximum width or height of the rendered bitmap (e.g. 300 for thumb, 1200 for OCR).
+     * @return Decoded Bitmap of Page 1, or null if rendering fails.
+     */
+    @Nullable
+    public static Bitmap renderFirstPage(@NonNull Context context, @NonNull Uri pdfUri, int maxDimension) {
+        ParcelFileDescriptor pfd = null;
+        PdfRenderer renderer = null;
+        PdfRenderer.Page page = null;
+        try {
+            pfd = context.getContentResolver().openFileDescriptor(pdfUri, "r");
+            if (pfd == null) return null;
+
+            renderer = new PdfRenderer(pfd);
+            if (renderer.getPageCount() == 0) return null;
+
+            page = renderer.openPage(0);
+            int pageWidth = page.getWidth();
+            int pageHeight = page.getHeight();
+
+            int targetWidth = pageWidth;
+            int targetHeight = pageHeight;
+
+            if (maxDimension > 0 && (pageWidth > maxDimension || pageHeight > maxDimension)) {
+                if (pageWidth >= pageHeight) {
+                    targetWidth = maxDimension;
+                    targetHeight = Math.max(1, (int) ((float) targetWidth * pageHeight / pageWidth));
+                } else {
+                    targetHeight = maxDimension;
+                    targetWidth = Math.max(1, (int) ((float) targetHeight * pageWidth / pageHeight));
+                }
+            }
+
+            Bitmap bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            canvas.drawColor(Color.WHITE);
+            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+            return bitmap;
+
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to render PDF page 1: " + pdfUri, e);
+            return null;
+        } finally {
+            if (page != null) {
+                try { page.close(); } catch (Exception ignored) {}
+            }
+            if (renderer != null) {
+                try { renderer.close(); } catch (Exception ignored) {}
+            }
+            if (pfd != null) {
+                try { pfd.close(); } catch (Exception ignored) {}
+            }
+        }
+    }
+
+    /**
+     * Saves an unencrypted copy of a PDF to the device's public Downloads directory.
+     *
+     * @param context Host context.
+     * @param sourcePdfFile Local PDF file on disk.
+     * @param docTitle Title of the document for file naming.
+     * @return true if successfully saved, false otherwise.
+     */
+    public static boolean savePdfToDownloads(@NonNull Context context, @NonNull File sourcePdfFile, @NonNull String docTitle) {
+        String safeName = sanitizeFilename(docTitle) + "_" + System.currentTimeMillis() + ".pdf";
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Downloads.DISPLAY_NAME, safeName);
+                values.put(MediaStore.Downloads.MIME_TYPE, "application/pdf");
+                values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/GhostDocs");
+                values.put(MediaStore.Downloads.IS_PENDING, 1);
+
+                Uri uri = context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                if (uri != null) {
+                    try (InputStream in = new FileInputStream(sourcePdfFile);
+                         OutputStream out = context.getContentResolver().openOutputStream(uri)) {
+                        byte[] buf = new byte[8192];
+                        int len;
+                        while ((len = in.read(buf)) > 0) {
+                            out.write(buf, 0, len);
+                        }
+                    }
+                    values.clear();
+                    values.put(MediaStore.Downloads.IS_PENDING, 0);
+                    context.getContentResolver().update(uri, values, null, null);
+                    return true;
+                }
+            } else {
+                File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                File ghostDir = new File(downloadsDir, "GhostDocs");
+                ghostDir.mkdirs();
+                File outFile = new File(ghostDir, safeName);
+                try (InputStream in = new FileInputStream(sourcePdfFile);
+                     OutputStream out = new FileOutputStream(outFile)) {
+                    byte[] buf = new byte[8192];
+                    int len;
+                    while ((len = in.read(buf)) > 0) {
+                        out.write(buf, 0, len);
+                    }
+                }
+                return true;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to save PDF to Downloads", e);
+        }
+        return false;
+    }
+
+    public static String sanitizeFilename(String name) {
+        if (name == null || name.trim().isEmpty()) return "GhostDocs_Document";
+        return name.replaceAll("[^a-zA-Z0-9.-]", "_");
+    }
+}

@@ -160,6 +160,7 @@ public class VaultRecyclerAdapter
         final TextView tvTitle;
         final TextView tvDate;
         final TextView tvTag;
+        final TextView tvDocIcon;
         final View     viewTypeBadge;
 
         public DocumentViewHolder(@NonNull View itemView) {
@@ -168,6 +169,7 @@ public class VaultRecyclerAdapter
             tvTitle      = itemView.findViewById(R.id.tv_doc_title);
             tvDate       = itemView.findViewById(R.id.tv_doc_date);
             tvTag        = itemView.findViewById(R.id.tv_doc_tag);
+            tvDocIcon    = itemView.findViewById(R.id.tv_doc_icon);
             viewTypeBadge = itemView.findViewById(R.id.view_type_badge);
 
             // Wire click and long-click to adapter's listener
@@ -203,6 +205,12 @@ public class VaultRecyclerAdapter
                     ? doc.getTitle() : "Unnamed Document");
             tvDate.setText(doc.getFormattedDate());
             tvTag.setText(doc.getPrimaryTag());
+
+            if (tvDocIcon != null) {
+                boolean isPdf = (doc.getTags() != null && doc.getTags().contains("PDF"))
+                        || (doc.getTitle() != null && doc.getTitle().toLowerCase().endsWith(".pdf"));
+                tvDocIcon.setText(isPdf ? "📄" : "🔐");
+            }
 
             // Set the left-side type badge colour (Polymorphism at work)
             viewTypeBadge.setBackgroundColor(

@@ -33,12 +33,14 @@ import com.ghostdocs.vault.adapter.GalleryPhotoAdapter;
 import com.ghostdocs.vault.classifier.RegexClassifierEngine;
 import com.ghostdocs.vault.model.DocumentModel;
 import com.ghostdocs.vault.model.GalleryPhotoItem;
+import com.ghostdocs.vault.security.AesEncryptionHelper;
 import com.ghostdocs.vault.tasks.CropTask;
 import com.ghostdocs.vault.tasks.EncryptTask;
 import com.ghostdocs.vault.tasks.OcrTask;
 import com.ghostdocs.vault.tasks.PdfGeneratorTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
 import com.ghostdocs.vault.util.NotificationHelper;
+import com.ghostdocs.vault.util.PdfExportHelper;
 import com.google.android.gms.tasks.Tasks;
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
@@ -52,7 +54,10 @@ import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.TextRecognizer;
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -123,6 +128,13 @@ public class ImportPhotosActivity extends AppCompatActivity
 
     // ── System Gallery Multi-Picker Launcher ─────────────────────────────────
     private final ActivityResultLauncher<String> galleryPickerLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.GetMultipleContents(),
+                    this::handleManualGallerySelection
+            );
+
+    // ── System PDF Multi-Picker Launcher ─────────────────────────────────────
+    private final ActivityResultLauncher<String> pdfPickerLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.GetMultipleContents(),
                     this::handleManualGallerySelection
@@ -203,6 +215,14 @@ public class ImportPhotosActivity extends AppCompatActivity
         findViewById(R.id.btn_browse_gallery).setOnClickListener(v -> {
             galleryPickerLauncher.launch("image/*");
         });
+
+        // Browse PDF button
+        View btnBrowsePdf = findViewById(R.id.btn_browse_pdf);
+        if (btnBrowsePdf != null) {
+            btnBrowsePdf.setOnClickListener(v -> {
+                pdfPickerLauncher.launch("application/pdf");
+            });
+        }
 
         // Rescan button
         findViewById(R.id.btn_rescan_device).setOnClickListener(v -> scanGalleryScreenshots());
@@ -359,8 +379,21 @@ public class ImportPhotosActivity extends AppCompatActivity
                 if (item.isAlreadyVaulted() || item.isSuggested()) continue;
 
                 try {
-                    OcrTask ocrTask = new OcrTask(this, item.getUri(), item.getDisplayName(), null);
+                    OcrTask ocrTask;
+                    Bitmap pdfPageBitmap = null;
+                    if (item.isPdf()) {
+                        pdfPageBitmap = PdfExportHelper.renderFirstPage(this, item.getUri(), 1200);
+                        if (pdfPageBitmap == null) continue;
+                        ocrTask = new OcrTask(this, pdfPageBitmap, item.getDisplayName(), null);
+                    } else {
+                        ocrTask = new OcrTask(this, item.getUri(), item.getDisplayName(), null);
+                    }
+
                     OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
+                    if (pdfPageBitmap != null && !pdfPageBitmap.isRecycled()) {
+                        pdfPageBitmap.recycle();
+                    }
+
                     if (ocrResult != null && ocrResult.getClassification() != null) {
                         String docType = ocrResult.getClassification().getDocType();
                         if (!DocumentModel.TYPE_OTHER.equalsIgnoreCase(docType)) {
@@ -497,6 +530,55 @@ public class ImportPhotosActivity extends AppCompatActivity
                 Log.e(TAG, "Error querying MediaStore screenshots", e);
             }
 
+            // In addition, query device storage for PDF documents
+            try {
+                Uri filesUri = MediaStore.Files.getContentUri("external");
+                String[] pdfProjection = new String[]{
+                        MediaStore.Files.FileColumns._ID,
+                        MediaStore.Files.FileColumns.DISPLAY_NAME,
+                        MediaStore.Files.FileColumns.MIME_TYPE,
+                        MediaStore.Files.FileColumns.DATE_ADDED,
+                        MediaStore.Files.FileColumns.SIZE
+                };
+                String pdfSelection = "(" + MediaStore.Files.FileColumns.MIME_TYPE + " = 'application/pdf' OR "
+                        + MediaStore.Files.FileColumns.DISPLAY_NAME + " LIKE '%.pdf') AND "
+                        + MediaStore.Files.FileColumns.SIZE + " > 0";
+                String pdfSortOrder = MediaStore.Files.FileColumns.DATE_ADDED + " DESC LIMIT 50";
+
+                try (Cursor pdfCursor = resolver.query(filesUri, pdfProjection, pdfSelection, null, pdfSortOrder)) {
+                    if (pdfCursor != null) {
+                        int idCol = pdfCursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID);
+                        int nameCol = pdfCursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME);
+                        int mimeCol = pdfCursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE);
+                        int dateCol = pdfCursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_ADDED);
+                        int sizeCol = pdfCursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE);
+
+                        while (pdfCursor.moveToNext()) {
+                            long id = pdfCursor.getLong(idCol);
+                            String displayName = pdfCursor.getString(nameCol);
+                            String mimeType = pdfCursor.getString(mimeCol);
+                            long dateAdded = pdfCursor.getLong(dateCol);
+                            long size = pdfCursor.getLong(sizeCol);
+
+                            Uri contentUri = ContentUris.withAppendedId(filesUri, id);
+                            boolean isAlreadyVaulted = vaultedUriStrings.contains(contentUri.toString());
+
+                            GalleryPhotoItem item = new GalleryPhotoItem(
+                                    contentUri,
+                                    displayName != null ? displayName : "Document_" + id + ".pdf",
+                                    mimeType != null ? mimeType : "application/pdf",
+                                    dateAdded,
+                                    size,
+                                    isAlreadyVaulted
+                            );
+                            scannedItems.add(item);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.d(TAG, "MediaStore.Files PDF query skipped: " + e.getMessage());
+            }
+
             // Apply watcher suggestion heuristics
             applyWatcherSuggestions(scannedItems);
 
@@ -631,46 +713,121 @@ public class ImportPhotosActivity extends AppCompatActivity
                 });
 
                 try {
-                    // Step 1: Smart Crop & Flatten
-                    CropTask cropTask = new CropTask(this, item.getUri(), null);
-                    Bitmap processedBitmap = cropTask.executeDirectly();
-
-                    // Step 2: ML Kit OCR & Classifier Engine
-                    OcrTask ocrTask = new OcrTask(this, processedBitmap, item.getDisplayName(), null);
-                    OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
-
-                    String docType = ocrResult.getClassification().getDocType();
-                    String title = ocrResult.getClassification().getTitle();
-                    List<String> tags = ocrResult.getClassification().getTags();
-                    String fullOcrText = ocrResult.getFullText();
-
-                    // Step 3: Hardware AES-256-GCM Encryption
-                    String docId = UUID.randomUUID().toString();
-                    EncryptTask encryptTask = new EncryptTask(this, processedBitmap, item.getUri(), docId, deleteOriginals, null);
-                    EncryptTask.EncryptResult encryptResult = encryptTask.executeDirectly();
-
-                    // If deletion was requested but blocked by Android 11+ Scoped Storage, queue URI for batch prompt
-                    if (deleteOriginals && !encryptResult.isOriginalDeleted()) {
-                        pendingDeleteUris.add(item.getUri());
-                    }
-
-                    // Step 4: Searchable PDF Generation
+                    String docType;
+                    String title;
+                    List<String> tags;
+                    String fullOcrText;
+                    String encryptedPath;
                     String pdfPath = "";
-                    try {
-                        PdfGeneratorTask pdfTask = new PdfGeneratorTask(
-                                this,
-                                processedBitmap,
-                                ocrResult.getBoundingBoxes(),
-                                docId,
-                                title,
-                                null
-                        );
-                        File pdfFile = pdfTask.executeDirectly();
-                        if (pdfFile != null && pdfFile.exists()) {
-                            pdfPath = pdfFile.getAbsolutePath();
+                    String docId = UUID.randomUUID().toString();
+
+                    if (item.isPdf()) {
+                        // ── PDF PIPELINE ──
+                        // 1. Render page 1 to Bitmap for ML Kit OCR & classification
+                        Bitmap page1Bitmap = PdfExportHelper.renderFirstPage(this, item.getUri(), 1200);
+                        if (page1Bitmap == null) {
+                            page1Bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
                         }
-                    } catch (Exception pdfEx) {
-                        Log.w(TAG, "Searchable PDF skipped for " + item.getDisplayName(), pdfEx);
+
+                        OcrTask ocrTask = new OcrTask(this, page1Bitmap, item.getDisplayName(), null);
+                        OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
+
+                        docType = ocrResult.getClassification().getDocType();
+                        title = ocrResult.getClassification().getTitle();
+                        tags = new ArrayList<>(ocrResult.getClassification().getTags());
+                        if (!tags.contains("PDF")) tags.add("PDF");
+                        fullOcrText = ocrResult.getFullText();
+
+                        if (!page1Bitmap.isRecycled()) {
+                            page1Bitmap.recycle();
+                        }
+
+                        // 2. Read full PDF bytes
+                        byte[] pdfBytes;
+                        try (InputStream is = getContentResolver().openInputStream(item.getUri());
+                             ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                            byte[] buf = new byte[8192];
+                            int len;
+                            while ((len = is.read(buf)) != -1) {
+                                baos.write(buf, 0, len);
+                            }
+                            pdfBytes = baos.toByteArray();
+                        }
+
+                        // 3. Hardware AES-256-GCM encryption on raw PDF bytes
+                        File encFile = AesEncryptionHelper.getInstance().encryptBytesToFile(this, pdfBytes, docId);
+                        encryptedPath = encFile.getAbsolutePath();
+
+                        // 4. Save searchable PDF in export directory
+                        File exportDir = new File(getExternalFilesDir(null), "GhostDocs/exports");
+                        if (!exportDir.exists()) exportDir.mkdirs();
+                        String safeTitle = PdfExportHelper.sanitizeFilename(title);
+                        File exportedPdf = new File(exportDir, safeTitle + "_" + docId.substring(0, Math.min(8, docId.length())) + ".pdf");
+                        try (FileOutputStream fos = new FileOutputStream(exportedPdf)) {
+                            fos.write(pdfBytes);
+                            fos.flush();
+                        }
+                        pdfPath = exportedPdf.getAbsolutePath();
+
+                        // 5. Handle original deletion if requested
+                        if (deleteOriginals) {
+                            boolean deleted = false;
+                            try {
+                                int rows = getContentResolver().delete(item.getUri(), null, null);
+                                deleted = rows > 0;
+                            } catch (Exception ignored) {}
+                            if (!deleted) {
+                                pendingDeleteUris.add(item.getUri());
+                            }
+                        }
+
+                    } else {
+                        // ── IMAGE PIPELINE ──
+                        // Step 1: Smart Crop & Flatten
+                        CropTask cropTask = new CropTask(this, item.getUri(), null);
+                        Bitmap processedBitmap = cropTask.executeDirectly();
+
+                        // Step 2: ML Kit OCR & Classifier Engine
+                        OcrTask ocrTask = new OcrTask(this, processedBitmap, item.getDisplayName(), null);
+                        OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
+
+                        docType = ocrResult.getClassification().getDocType();
+                        title = ocrResult.getClassification().getTitle();
+                        tags = ocrResult.getClassification().getTags();
+                        fullOcrText = ocrResult.getFullText();
+
+                        // Step 3: Hardware AES-256-GCM Encryption
+                        EncryptTask encryptTask = new EncryptTask(this, processedBitmap, item.getUri(), docId, deleteOriginals, null);
+                        EncryptTask.EncryptResult encryptResult = encryptTask.executeDirectly();
+                        encryptedPath = encryptResult.getEncryptedPath();
+
+                        // If deletion was requested but blocked by Android 11+ Scoped Storage, queue URI for batch prompt
+                        if (deleteOriginals && !encryptResult.isOriginalDeleted()) {
+                            pendingDeleteUris.add(item.getUri());
+                        }
+
+                        // Step 4: Searchable PDF Generation
+                        try {
+                            PdfGeneratorTask pdfTask = new PdfGeneratorTask(
+                                    this,
+                                    processedBitmap,
+                                    ocrResult.getBoundingBoxes(),
+                                    docId,
+                                    title,
+                                    null
+                            );
+                            File pdfFile = pdfTask.executeDirectly();
+                            if (pdfFile != null && pdfFile.exists()) {
+                                pdfPath = pdfFile.getAbsolutePath();
+                            }
+                        } catch (Exception pdfEx) {
+                            Log.w(TAG, "Searchable PDF skipped for " + item.getDisplayName(), pdfEx);
+                        }
+
+                        // Recycle bitmap
+                        if (processedBitmap != null && !processedBitmap.isRecycled()) {
+                            processedBitmap.recycle();
+                        }
                     }
 
                     // Step 5: Push metadata to Cloud Firestore
@@ -679,7 +836,7 @@ public class ImportPhotosActivity extends AppCompatActivity
                             docId,
                             title,
                             fullOcrText,
-                            encryptResult.getEncryptedPath(),
+                            encryptedPath,
                             item.getUri().toString(),
                             pdfPath,
                             timestamp,
@@ -698,13 +855,8 @@ public class ImportPhotosActivity extends AppCompatActivity
                     vaultedUriStrings.add(item.getUri().toString());
                     successCount++;
 
-                    // Recycle bitmap
-                    if (processedBitmap != null && !processedBitmap.isRecycled()) {
-                        processedBitmap.recycle();
-                    }
-
                 } catch (Exception e) {
-                    Log.e(TAG, "Failed securing old photo: " + item.getDisplayName(), e);
+                    Log.e(TAG, "Failed securing item: " + item.getDisplayName(), e);
                 }
             }
 
@@ -714,13 +866,13 @@ public class ImportPhotosActivity extends AppCompatActivity
                 layoutProgressOverlay.setVisibility(View.GONE);
 
                 Toast.makeText(ImportPhotosActivity.this,
-                        "🎉 " + finalSuccess + " photos successfully secured into vault!",
+                        "🎉 " + finalSuccess + " documents successfully secured into vault!",
                         Toast.LENGTH_LONG).show();
 
                 if (finalSuccess > 0) {
                     NotificationHelper.showDocumentSecuredNotification(
                             ImportPhotosActivity.this,
-                            finalSuccess + " Old Gallery Photos",
+                            finalSuccess + " Documents Secured",
                             "BATCH VAULT"
                     );
                 }

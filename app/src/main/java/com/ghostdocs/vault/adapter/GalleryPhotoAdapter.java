@@ -27,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.model.GalleryPhotoItem;
 import com.ghostdocs.vault.tasks.VaultExecutor;
+import com.ghostdocs.vault.util.PdfExportHelper;
 import com.google.android.material.card.MaterialCardView;
 
 import java.io.InputStream;
@@ -88,7 +89,8 @@ public class GalleryPhotoAdapter extends RecyclerView.Adapter<GalleryPhotoAdapte
         long timestampMs = item.getDateAdded() > 100000000000L ? item.getDateAdded() : item.getDateAdded() * 1000L;
         String dateStr = DateFormat.format("MMM d, yyyy", timestampMs).toString();
         String sizeStr = Formatter.formatFileSize(context, item.getSize());
-        holder.tvDate.setText(dateStr + " • " + sizeStr);
+        String formatPrefix = item.isPdf() ? "📄 PDF • " : "";
+        holder.tvDate.setText(formatPrefix + dateStr + " • " + sizeStr);
 
         // Vaulted & Selection state
         if (item.isAlreadyVaulted()) {
@@ -127,7 +129,7 @@ public class GalleryPhotoAdapter extends RecyclerView.Adapter<GalleryPhotoAdapte
         }
 
         // Load asynchronous thumbnail
-        loadThumbnailAsync(item.getUri(), holder.ivThumbnail);
+        loadThumbnailAsync(item, holder.ivThumbnail);
     }
 
     @Override
@@ -209,8 +211,10 @@ public class GalleryPhotoAdapter extends RecyclerView.Adapter<GalleryPhotoAdapte
 
     /**
      * Efficiently loads and caches downscaled thumbnails without blocking UI.
+     * Supports both standard photos and multi-page native PDF documents.
      */
-    private void loadThumbnailAsync(Uri uri, ImageView imageView) {
+    private void loadThumbnailAsync(GalleryPhotoItem item, ImageView imageView) {
+        Uri uri = item.getUri();
         imageView.setTag(uri);
         Bitmap cached = thumbnailCache.get(uri);
         if (cached != null) {
@@ -219,12 +223,14 @@ public class GalleryPhotoAdapter extends RecyclerView.Adapter<GalleryPhotoAdapte
         }
 
         // Placeholder while loading
-        imageView.setImageResource(android.R.drawable.ic_menu_gallery);
+        imageView.setImageResource(item.isPdf() ? android.R.drawable.ic_menu_agenda : android.R.drawable.ic_menu_gallery);
 
         VaultExecutor.getInstance().execute(() -> {
             try {
                 Bitmap thumb = null;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (item.isPdf()) {
+                    thumb = PdfExportHelper.renderFirstPage(context, uri, THUMB_SIZE * 2);
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     thumb = context.getContentResolver().loadThumbnail(
                             uri,
                             new Size(THUMB_SIZE, THUMB_SIZE),

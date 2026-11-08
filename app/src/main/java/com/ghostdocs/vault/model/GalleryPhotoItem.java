@@ -87,6 +87,11 @@ public class GalleryPhotoItem {
         this.alreadyVaulted = alreadyVaulted;
     }
 
+    public boolean isPdf() {
+        return (mimeType != null && mimeType.equalsIgnoreCase("application/pdf"))
+                || (displayName != null && displayName.toLowerCase().endsWith(".pdf"));
+    }
+
     public boolean isSuggested() {
         return suggested;
     }

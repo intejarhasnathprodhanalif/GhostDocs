@@ -113,10 +113,9 @@ public final class AesEncryptionHelper {
     }
 
     /**
-     * Compresses a Bitmap to JPEG, encrypts it using AES-256-GCM, and writes the
-     * encrypted bytes to the target destination file in app-private storage.
+     * Encrypts a {@link Bitmap} into the internal vault directory via AES-256-GCM.
      *
-     * @param context Application context.
+     * @param context Application context for accessing filesDir.
      * @param bitmap  Source bitmap to compress and encrypt.
      * @param docId   Unique document identifier for naming the file.
      * @return The encrypted {@link File} object.
@@ -133,18 +132,36 @@ public final class AesEncryptionHelper {
         byte[] plaintextBytes = baos.toByteArray();
         baos.close();
 
-        // 2. Generate random 12-byte IV
+        // 2. Encrypt bytes to file
+        return encryptBytesToFile(context, plaintextBytes, docId);
+    }
+
+    /**
+     * Encrypts raw binary data (e.g. PDF bytes) into the internal vault directory via AES-256-GCM.
+     *
+     * @param context        Application context for accessing filesDir.
+     * @param plaintextBytes Raw binary bytes to encrypt.
+     * @param docId          Unique document identifier for naming the file.
+     * @return The encrypted {@link File} object.
+     * @throws Exception If encryption or file I/O fails.
+     */
+    @NonNull
+    public File encryptBytesToFile(@NonNull Context context,
+                                   @NonNull byte[] plaintextBytes,
+                                   @NonNull String docId) throws Exception {
+
+        // 1. Generate random 12-byte IV
         byte[] iv = new byte[GCM_IV_LENGTH_BYTES];
         new SecureRandom().nextBytes(iv);
 
-        // 3. Encrypt via AES-256-GCM
+        // 2. Encrypt via AES-256-GCM
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         GCMParameterSpec parameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
         cipher.init(Cipher.ENCRYPT_MODE, getSecretKey(), parameterSpec);
 
         byte[] ciphertextWithTag = cipher.doFinal(plaintextBytes);
 
-        // 4. Ensure internal vault directory exists: context.getFilesDir() / vault
+        // 3. Ensure internal vault directory exists: context.getFilesDir() / vault
         File vaultDir = new File(context.getFilesDir(), "vault");
         if (!vaultDir.exists()) {
             boolean created = vaultDir.mkdirs();
@@ -153,17 +170,32 @@ public final class AesEncryptionHelper {
 
         File encryptedFile = new File(vaultDir, docId + ".enc");
 
-        // 5. Write IV followed by Ciphertext + Tag
+        // 4. Write IV followed by Ciphertext + Tag
         try (FileOutputStream fos = new FileOutputStream(encryptedFile)) {
             fos.write(iv);
             fos.write(ciphertextWithTag);
             fos.flush();
         }
 
-        Log.i(TAG, "Encrypted file written: " + encryptedFile.getAbsolutePath()
+        Log.i(TAG, "Encrypted binary file written: " + encryptedFile.getAbsolutePath()
                 + " (Size: " + encryptedFile.length() + " bytes)");
 
         return encryptedFile;
+    }
+
+    /**
+     * Decrypts an AES-256-GCM encrypted file and writes the plaintext directly to a destination File.
+     */
+    public void decryptFileToFile(@NonNull File encryptedFile, @NonNull File destinationFile) throws Exception {
+        byte[] decryptedBytes = decryptFileToBytes(encryptedFile);
+        File parent = destinationFile.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
+        try (FileOutputStream fos = new FileOutputStream(destinationFile)) {
+            fos.write(decryptedBytes);
+            fos.flush();
+        }
     }
 
     /**
