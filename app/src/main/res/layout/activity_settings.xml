@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  activity_settings.xml — Settings & Log Screen
-  Uses ConstraintLayout (as required by spec).
-  Contains: toolbar, ListView (powered by LogListAdapter).
+  activity_settings.xml — Polished Settings & Configuration Screen
+  Uses ConstraintLayout as mandated by spec.
 -->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -13,49 +12,70 @@
     android:background="@color/ghostDarkBg"
     tools:context=".activities.SettingsActivity">
 
-    <!-- ── Custom Toolbar ────────────────────────────────────────────────── -->
+    <!-- ── 1. Custom Polished Toolbar ────────────────────────────────────── -->
     <RelativeLayout
         android:id="@+id/toolbar_settings"
         android:layout_width="0dp"
-        android:layout_height="56dp"
+        android:layout_height="60dp"
         android:background="@color/ghostSurface"
-        android:paddingHorizontal="12dp"
+        android:paddingHorizontal="14dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Back arrow -->
+        <!-- Circular Back Arrow Button -->
         <TextView
             android:id="@+id/btn_back"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/bg_icon_circle"
+            android:clickable="true"
+            android:contentDescription="Go back"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="←"
+            android:textColor="@color/ghostPrimary"
+            android:textSize="20sp" />
+
+        <!-- Title & Subtitle Container -->
+        <RelativeLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
-            android:layout_alignParentStart="true"
-            android:padding="8dp"
-            android:text="←"
-            android:textColor="@color/ghostPrimary"
-            android:textSize="22sp"
-            android:contentDescription="Go back" />
+            android:layout_marginStart="12dp"
+            android:layout_toEndOf="@id/btn_back">
 
-        <!-- Title -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:text="@string/settings_title"
-            android:textColor="@color/ghostOnSurface"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            <TextView
+                android:id="@+id/tv_settings_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_title"
+                android:textColor="@color/ghostOnSurface"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_settings_title"
+                android:text="Preferences, Theme &amp; Maintenance"
+                android:textColor="@color/ghostOnSurfaceMuted"
+                android:textSize="11sp" />
+        </RelativeLayout>
 
     </RelativeLayout>
 
-    <!-- ── Settings ListView ─────────────────────────────────────────────── -->
+    <!-- ── 2. Settings ListView ─────────────────────────────────────────── -->
     <ListView
         android:id="@+id/lv_settings"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:clipToPadding="false"
         android:divider="@null"
         android:dividerHeight="0dp"
+        android:paddingBottom="24dp"
         android:scrollbars="none"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

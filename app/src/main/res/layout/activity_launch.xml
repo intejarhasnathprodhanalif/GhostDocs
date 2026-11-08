@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  activity_launch.xml — Launch / Splash Gate Screen
-  ConstraintLayout as required by spec.
-  Shows branding while Firebase Auth state is checked.
+  activity_launch.xml — Polished Launch / Splash Gate Screen
+  ConstraintLayout as mandated by spec.
+  Shows high-tech cybersecurity branding while Firebase Auth & Biometrics initialize.
 -->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -13,31 +13,33 @@
     android:background="@color/ghostDarkBg"
     tools:context=".activities.LaunchActivity">
 
-    <!-- Ghost icon placeholder (replaced with real asset in Step 2) -->
+    <!-- Glowing Ghost Emblem Icon -->
     <TextView
         android:id="@+id/tv_ghost_icon"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:background="@drawable/bg_brand_circle"
+        android:gravity="center"
         android:text="👻"
-        android:textSize="72sp"
+        android:textSize="52sp"
         app:layout_constraintBottom_toTopOf="@id/tv_app_name"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed"
-        app:layout_constraintVertical_bias="0.42" />
+        app:layout_constraintVertical_bias="0.40"
+        app:layout_constraintVertical_chainStyle="packed" />
 
-    <!-- App name -->
+    <!-- App Name -->
     <TextView
         android:id="@+id/tv_app_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="20dp"
+        android:letterSpacing="0.08"
         android:text="@string/app_name"
         android:textColor="@color/ghostOnSurface"
         android:textSize="36sp"
         android:textStyle="bold"
-        android:letterSpacing="0.1"
         app:layout_constraintBottom_toTopOf="@id/tv_tagline"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -49,27 +51,43 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
+        android:letterSpacing="0.12"
         android:text="@string/app_tagline"
         android:textColor="@color/ghostPrimary"
         android:textSize="13sp"
-        android:letterSpacing="0.15"
+        android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@id/progress_indicator"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tv_app_name" />
 
-    <!-- Loading indicator while checking auth state -->
+    <!-- Loading Indicator -->
     <ProgressBar
         android:id="@+id/progress_indicator"
         style="?android:attr/progressBarStyleSmall"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="48dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginTop="36dp"
         android:indeterminateTint="@color/ghostPrimary"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/tv_security_badge"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tv_tagline" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- Bottom Hardware Security Badge -->
+    <TextView
+        android:id="@+id/tv_security_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="32dp"
+        android:background="@drawable/bg_status_badge"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="6dp"
+        android:text="🛡️ Hardware AES-256-GCM • Biometric Lock"
+        android:textColor="@color/ghostOnSurfaceMuted"
+        android:textSize="11sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
+</androidx.constraintlayout.widget.ConstraintLayout>

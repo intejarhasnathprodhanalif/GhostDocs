@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  activity_vault.xml — Main Secure Vault Dashboard
-  Full Step 3 implementation.
-  Root: ConstraintLayout (as required by spec).
-  Contains: custom toolbar, stats bar, RecyclerView, FAB, empty state.
+  activity_vault.xml — Polished Secure Vault Dashboard
+  Root: ConstraintLayout (as mandated by spec).
+  Sub-containers: RelativeLayout and LinearLayout for layout hierarchy.
 -->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -14,138 +13,174 @@
     android:background="@color/ghostDarkBg"
     tools:context=".activities.VaultActivity">
 
-    <!-- ── Custom Toolbar ────────────────────────────────────────────────── -->
+    <!-- ── 1. Custom Polished Toolbar ────────────────────────────────────── -->
     <RelativeLayout
         android:id="@+id/toolbar_vault"
         android:layout_width="0dp"
-        android:layout_height="56dp"
+        android:layout_height="62dp"
         android:background="@color/ghostSurface"
-        android:paddingHorizontal="16dp"
+        android:paddingHorizontal="14dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Ghost icon -->
+        <!-- Ghost Emblem Icon -->
         <TextView
             android:id="@+id/tv_toolbar_icon"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/bg_brand_circle"
+            android:gravity="center"
             android:text="👻"
-            android:textSize="22sp" />
+            android:textSize="20sp" />
 
-        <!-- App name -->
-        <TextView
-            android:id="@+id/tv_toolbar_title"
+        <!-- App Name & Subtitle Container -->
+        <RelativeLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
-            android:layout_toEndOf="@id/tv_toolbar_icon"
-            android:layout_marginStart="8dp"
-            android:text="@string/app_name"
-            android:textColor="@color/ghostOnSurface"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:layout_marginStart="10dp"
+            android:layout_toEndOf="@id/tv_toolbar_icon">
 
-        <!-- Sign-out button -->
+            <TextView
+                android:id="@+id/tv_toolbar_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textColor="@color/ghostOnSurface"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_toolbar_title"
+                android:text="Encrypted Hardware Vault"
+                android:textColor="@color/ghostOnSurfaceMuted"
+                android:textSize="10sp" />
+        </RelativeLayout>
+
+        <!-- Sign-out Circular Button -->
         <TextView
             android:id="@+id/btn_sign_out"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_alignParentEnd="true"
-            android:layout_marginEnd="8dp"
-            android:padding="8dp"
+            android:layout_centerVertical="true"
+            android:background="@drawable/bg_icon_circle"
+            android:clickable="true"
+            android:contentDescription="Sign out"
+            android:focusable="true"
+            android:gravity="center"
             android:text="⇥"
             android:textColor="@color/ghostOnSurfaceMuted"
-            android:textSize="20sp"
-            android:contentDescription="Sign out" />
+            android:textSize="17sp" />
 
-        <!-- Settings button -->
+        <!-- Settings Circular Button -->
         <TextView
             android:id="@+id/btn_open_settings"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_centerVertical="true"
+            android:layout_marginEnd="6dp"
             android:layout_toStartOf="@id/btn_sign_out"
-            android:padding="8dp"
+            android:background="@drawable/bg_icon_circle"
+            android:clickable="true"
+            android:contentDescription="Settings"
+            android:focusable="true"
+            android:gravity="center"
             android:text="⚙"
             android:textColor="@color/ghostOnSurfaceMuted"
-            android:textSize="20sp"
-            android:contentDescription="Settings" />
+            android:textSize="16sp" />
 
-        <!-- Import / Scan Old Photos button -->
+        <!-- Import / Scan Old Photos Circular Button -->
         <TextView
             android:id="@+id/btn_import_photos"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_centerVertical="true"
+            android:layout_marginEnd="6dp"
             android:layout_toStartOf="@id/btn_open_settings"
-            android:padding="8dp"
+            android:background="@drawable/bg_icon_circle"
+            android:clickable="true"
+            android:contentDescription="Import old photos"
+            android:focusable="true"
+            android:gravity="center"
             android:text="📥"
             android:textColor="@color/ghostPrimary"
-            android:textSize="20sp"
-            android:contentDescription="Import old photos" />
+            android:textSize="15sp" />
 
-        <!-- User Profile button -->
+        <!-- User Profile Circular Button -->
         <TextView
             android:id="@+id/btn_open_profile"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_centerVertical="true"
+            android:layout_marginEnd="6dp"
             android:layout_toStartOf="@id/btn_import_photos"
-            android:padding="8dp"
+            android:background="@drawable/bg_icon_circle"
+            android:clickable="true"
+            android:contentDescription="User profile"
+            android:focusable="true"
+            android:gravity="center"
             android:text="👤"
             android:textColor="@color/ghostPrimary"
-            android:textSize="20sp"
-            android:contentDescription="User profile" />
+            android:textSize="15sp" />
 
     </RelativeLayout>
 
-    <!-- ── Stats Bar ──────────────────────────────────────────────────────── -->
+    <!-- ── 2. Sleek Dual-Pill Stats Bar ──────────────────────────────────── -->
     <RelativeLayout
         android:id="@+id/layout_stats"
         android:layout_width="0dp"
-        android:layout_height="48dp"
+        android:layout_height="44dp"
         android:background="@color/ghostSurfaceVariant"
-        android:paddingHorizontal="16dp"
+        android:paddingHorizontal="14dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/toolbar_vault">
 
-        <!-- Document count -->
+        <!-- Document Count Pill -->
         <TextView
             android:id="@+id/tv_doc_count"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
             android:layout_alignParentStart="true"
-            android:textColor="@color/ghostOnSurfaceMuted"
-            android:textSize="12sp"
-            tools:text="12 documents secured" />
+            android:layout_centerVertical="true"
+            android:background="@drawable/bg_status_badge"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:textColor="@color/ghostOnSurface"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            tools:text="🛡️ 12 documents secured" />
 
-        <!-- Watcher status dot -->
+        <!-- Watcher Status Capsule Pill -->
         <TextView
             android:id="@+id/tv_watcher_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
             android:layout_alignParentEnd="true"
-            android:textSize="12sp"
+            android:layout_centerVertical="true"
+            android:background="@drawable/bg_status_badge"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:textSize="11sp"
             android:textStyle="bold"
             tools:text="● Watcher: ON"
             tools:textColor="@color/ghostSuccess" />
 
     </RelativeLayout>
 
-    <!-- ── Search & Filter Bar ───────────────────────────────────────────── -->
+    <!-- ── 3. Search & Filter Bar ────────────────────────────────────────── -->
     <RelativeLayout
         android:id="@+id/layout_search"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="@color/ghostSurface"
-        android:paddingHorizontal="16dp"
+        android:paddingHorizontal="14dp"
         android:paddingVertical="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -154,15 +189,15 @@
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="42dp"
-            android:background="@color/ghostSurfaceVariant"
-            android:paddingHorizontal="12dp">
+            android:background="@drawable/bg_pill_search"
+            android:paddingHorizontal="14dp">
 
             <TextView
                 android:id="@+id/tv_search_icon"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
                 android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
                 android:text="🔍"
                 android:textSize="14sp" />
 
@@ -170,8 +205,8 @@
                 android:id="@+id/et_search_vault"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_toEndOf="@id/tv_search_icon"
                 android:layout_marginStart="8dp"
+                android:layout_toEndOf="@id/tv_search_icon"
                 android:background="@null"
                 android:hint="Search title, type, tags, or OCR content..."
                 android:imeOptions="actionSearch"
@@ -183,11 +218,11 @@
         </RelativeLayout>
     </RelativeLayout>
 
-    <!-- ── Category Filter Bar (Smart Folders) ────────────────────────── -->
+    <!-- ── 4. Category Filter Bar (Smart Folders) ─────────────────────────── -->
     <RelativeLayout
         android:id="@+id/layout_categories"
         android:layout_width="0dp"
-        android:layout_height="46dp"
+        android:layout_height="48dp"
         android:background="@color/ghostSurface"
         android:paddingVertical="6dp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -199,21 +234,21 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingHorizontal="12dp"
             android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
             tools:listitem="@layout/item_category_chip" />
 
     </RelativeLayout>
 
-    <!-- ── Main RecyclerView (Firestore-synced vault grid) ───────────────── -->
+    <!-- ── 5. Main RecyclerView (Firestore-synced vault grid) ────────────── -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_vault"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
-        android:paddingBottom="80dp"
-        android:paddingTop="8dp"
         android:paddingHorizontal="6dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="84dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -221,13 +256,14 @@
         tools:itemCount="6"
         tools:listitem="@layout/item_document" />
 
-    <!-- ── Empty state (shown when vault has no documents) ───────────────── -->
+    <!-- ── 6. Polished Empty State ───────────────────────────────────────── -->
     <LinearLayout
         android:id="@+id/layout_empty_state"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -236,36 +272,47 @@
         tools:visibility="visible">
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="👁"
-            android:textSize="56sp"
-            android:gravity="center" />
+            android:layout_width="76dp"
+            android:layout_height="76dp"
+            android:background="@drawable/bg_brand_circle"
+            android:gravity="center"
+            android:text="👻"
+            android:textSize="38sp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/vault_empty_state"
-            android:textColor="@color/ghostOnSurfaceMuted"
-            android:textSize="14sp"
+            android:layout_marginTop="18dp"
+            android:text="Your Secure Vault is Empty"
+            android:textColor="@color/ghostOnSurface"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
             android:gravity="center"
-            android:lineSpacingMultiplier="1.4"
-            android:paddingHorizontal="40dp" />
+            android:lineSpacingMultiplier="1.3"
+            android:paddingHorizontal="32dp"
+            android:text="The background Watcher will automatically intercept and hardware-encrypt sensitive screenshots."
+            android:textColor="@color/ghostOnSurfaceMuted"
+            android:textSize="13sp" />
 
         <!-- Quick Import Pre-existing Photos Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_empty_import"
             style="@style/Button.GhostDocs.Primary"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="44dp"
             android:layout_marginTop="20dp"
-            android:text="📥 Secure Old Gallery Photos"
+            android:paddingHorizontal="20dp"
+            android:text="📥 Secure Photos &amp; PDFs"
             android:textSize="13sp" />
 
     </LinearLayout>
 
-    <!-- ── FAB: Start / Stop Watcher ─────────────────────────────────────── -->
+    <!-- ── 7. Floating Action Button (Start / Stop Watcher) ───────────────── -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_watcher_toggle"
         android:layout_width="wrap_content"
@@ -275,8 +322,9 @@
         android:contentDescription="Toggle watcher"
         android:src="@android:drawable/ic_media_play"
         app:backgroundTint="@color/ghostPrimary"
-        app:tint="@color/ghostOnPrimary"
+        app:elevation="6dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@color/ghostOnPrimary" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

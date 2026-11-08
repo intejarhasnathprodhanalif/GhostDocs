@@ -22,16 +22,20 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
+        <!-- Circular Back button -->
         <TextView
             android:id="@+id/btn_back_import"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_centerVertical="true"
             android:layout_alignParentStart="true"
-            android:padding="8dp"
+            android:background="@drawable/bg_icon_circle"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
             android:text="←"
             android:textColor="@color/ghostPrimary"
-            android:textSize="24sp"
+            android:textSize="20sp"
             android:contentDescription="Back" />
 
         <RelativeLayout
@@ -231,11 +235,13 @@
 
         <TextView
             android:id="@+id/tv_empty_icon"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
             android:layout_centerHorizontal="true"
+            android:background="@drawable/bg_brand_circle"
+            android:gravity="center"
             android:text="🖼️"
-            android:textSize="56sp" />
+            android:textSize="36sp" />
 
         <TextView
             android:id="@+id/tv_empty_headline"

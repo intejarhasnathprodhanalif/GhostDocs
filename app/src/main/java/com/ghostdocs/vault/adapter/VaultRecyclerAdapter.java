@@ -209,12 +209,26 @@ public class VaultRecyclerAdapter
             if (tvDocIcon != null) {
                 boolean isPdf = (doc.getTags() != null && doc.getTags().contains("PDF"))
                         || (doc.getTitle() != null && doc.getTitle().toLowerCase().endsWith(".pdf"));
-                tvDocIcon.setText(isPdf ? "📄" : "🔐");
+                if (isPdf) {
+                    tvDocIcon.setText("📄");
+                } else if (doc.getDocType() != null) {
+                    switch (doc.getDocType()) {
+                        case DocumentModel.TYPE_NID:          tvDocIcon.setText("🪪"); break;
+                        case DocumentModel.TYPE_RECEIPT:      tvDocIcon.setText("💳"); break;
+                        case DocumentModel.TYPE_PRESCRIPTION: tvDocIcon.setText("💊"); break;
+                        case DocumentModel.TYPE_PASSWORD:     tvDocIcon.setText("🔑"); break;
+                        case DocumentModel.TYPE_STUDY_NOTE:   tvDocIcon.setText("📚"); break;
+                        default:                              tvDocIcon.setText("🔐"); break;
+                    }
+                } else {
+                    tvDocIcon.setText("🔐");
+                }
             }
 
-            // Set the left-side type badge colour (Polymorphism at work)
-            viewTypeBadge.setBackgroundColor(
-                    resolveBadgeColor(doc.getDocType()));
+            // Set dynamic accent colours (Polymorphism at work)
+            int badgeColor = resolveBadgeColor(doc.getDocType());
+            viewTypeBadge.setBackgroundColor(badgeColor);
+            tvDocType.setTextColor(badgeColor);
         }
 
         /**
