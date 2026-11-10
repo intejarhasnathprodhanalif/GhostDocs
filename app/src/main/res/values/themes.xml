@@ -98,4 +98,9 @@
         <item name="strokeWidth">1dp</item>
     </style>
 
+    <!-- Circular shape appearance for avatars and profile pictures -->
+    <style name="ShapeAppearance.GhostDocs.Circle" parent="">
+        <item name="cornerSize">50%</item>
+    </style>
+
 </resources>

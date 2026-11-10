@@ -1,15 +1,21 @@
 package com.ghostdocs.vault.activities;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -37,9 +43,14 @@ import com.google.firebase.firestore.SetOptions;
 import com.google.firebase.firestore.WriteBatch;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -72,10 +83,21 @@ public class ProfileActivity extends AppCompatActivity {
 
     // ── Header Views ─────────────────────────────────────────────────────────
     private TextView tvAvatarIcon;
+    private ImageView ivProfilePicture;
+    private View layoutAvatarContainer;
+    private View btnChangePhoto;
     private TextView tvProfileName;
     private TextView tvProfileEmail;
     private TextView tvEmailStatus;
     private TextView tvMemberSince;
+
+    // ── Photo Picker Launcher ────────────────────────────────────────────────
+    private final ActivityResultLauncher<String> photoPickerLauncher =
+            registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+                if (uri != null) {
+                    handleCustomPhotoSelected(uri);
+                }
+            });
 
     // ── Edit Name Views ──────────────────────────────────────────────────────
     private TextInputLayout tilUsername;
@@ -169,11 +191,14 @@ public class ProfileActivity extends AppCompatActivity {
         findViewById(R.id.btn_back_profile).setOnClickListener(v -> finish());
 
         // Header
-        tvAvatarIcon    = findViewById(R.id.tv_avatar_icon);
-        tvProfileName   = findViewById(R.id.tv_profile_name);
-        tvProfileEmail  = findViewById(R.id.tv_profile_email);
-        tvEmailStatus   = findViewById(R.id.tv_email_status);
-        tvMemberSince   = findViewById(R.id.tv_member_since);
+        tvAvatarIcon          = findViewById(R.id.tv_avatar_icon);
+        ivProfilePicture      = findViewById(R.id.iv_profile_picture);
+        layoutAvatarContainer = findViewById(R.id.layout_avatar_container);
+        btnChangePhoto        = findViewById(R.id.btn_change_photo);
+        tvProfileName         = findViewById(R.id.tv_profile_name);
+        tvProfileEmail        = findViewById(R.id.tv_profile_email);
+        tvEmailStatus         = findViewById(R.id.tv_email_status);
+        tvMemberSince         = findViewById(R.id.tv_member_since);
 
         // Edit Name
         tilUsername     = findViewById(R.id.til_username);
@@ -207,6 +232,12 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void setupClickListeners() {
+        if (layoutAvatarContainer != null) {
+            layoutAvatarContainer.setOnClickListener(v -> promptChangeProfilePhoto());
+        }
+        if (btnChangePhoto != null) {
+            btnChangePhoto.setOnClickListener(v -> promptChangeProfilePhoto());
+        }
         btnSaveUsername.setOnClickListener(v -> handleSaveUsername());
         btnUpdatePassword.setOnClickListener(v -> handleUpdatePassword());
         btnSendResetEmail.setOnClickListener(v -> handleSendResetEmail());
@@ -244,7 +275,7 @@ public class ProfileActivity extends AppCompatActivity {
         }
         tvProfileName.setText(name);
         etUsername.setText(user.getDisplayName() != null ? user.getDisplayName() : "");
-        updateAvatarInitials(name);
+        loadProfilePicture(user, name);
 
         // 2. Email
         String email = user.getEmail();
@@ -331,6 +362,220 @@ public class ProfileActivity extends AppCompatActivity {
             String initial = ("" + trimmed.charAt(0)).toUpperCase(Locale.ROOT);
             tvAvatarIcon.setText(initial);
         }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Profile Picture Loading & Management
+    // ════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Loads the profile picture according to priority:
+     * 1. Locally set custom profile picture (picked from gallery).
+     * 2. Google Account profile picture (if signed in via Google).
+     * 3. Default initials fallback badge ("GD" or initials).
+     */
+    private void loadProfilePicture(@NonNull FirebaseUser user, @NonNull String name) {
+        File customPhotoFile = new File(getFilesDir(), "profile_" + user.getUid() + ".jpg");
+        if (customPhotoFile.exists()) {
+            Bitmap bitmap = BitmapFactory.decodeFile(customPhotoFile.getAbsolutePath());
+            if (bitmap != null) {
+                displayProfileBitmap(bitmap);
+                return;
+            }
+        }
+
+        // Check if user has a Google photo URL
+        Uri photoUri = user.getPhotoUrl();
+        if (photoUri == null) {
+            for (UserInfo info : user.getProviderData()) {
+                if (info.getPhotoUrl() != null) {
+                    photoUri = info.getPhotoUrl();
+                    break;
+                }
+            }
+        }
+
+        if (photoUri != null) {
+            File googlePhotoFile = new File(getFilesDir(), "google_photo_" + user.getUid() + ".jpg");
+            if (googlePhotoFile.exists()) {
+                Bitmap bitmap = BitmapFactory.decodeFile(googlePhotoFile.getAbsolutePath());
+                if (bitmap != null) {
+                    displayProfileBitmap(bitmap);
+                    return;
+                }
+            }
+
+            // Fetch Google profile photo asynchronously
+            final String urlString = photoUri.toString();
+            VaultExecutor.getInstance().execute(() -> {
+                try {
+                    java.net.URL url = new java.net.URL(urlString);
+                    java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                    conn.setConnectTimeout(8000);
+                    conn.setReadTimeout(8000);
+                    conn.setDoInput(true);
+                    conn.connect();
+                    InputStream in = conn.getInputStream();
+                    Bitmap downloaded = BitmapFactory.decodeStream(in);
+                    if (in != null) in.close();
+
+                    if (downloaded != null) {
+                        saveBitmapToFile(downloaded, googlePhotoFile);
+                        runOnUiThread(() -> {
+                            if (!isFinishing() && !isDestroyed()) {
+                                displayProfileBitmap(downloaded);
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "Failed to download Google profile photo", e);
+                    runOnUiThread(() -> {
+                        if (!isFinishing() && !isDestroyed()) {
+                            showDefaultAvatar(name);
+                        }
+                    });
+                }
+            });
+        } else {
+            showDefaultAvatar(name);
+        }
+    }
+
+    private void displayProfileBitmap(@NonNull Bitmap bitmap) {
+        if (ivProfilePicture != null) {
+            ivProfilePicture.setImageBitmap(bitmap);
+            ivProfilePicture.setVisibility(View.VISIBLE);
+        }
+        if (tvAvatarIcon != null) {
+            tvAvatarIcon.setVisibility(View.GONE);
+        }
+    }
+
+    private void showDefaultAvatar(@NonNull String name) {
+        if (ivProfilePicture != null) {
+            ivProfilePicture.setVisibility(View.GONE);
+        }
+        if (tvAvatarIcon != null) {
+            tvAvatarIcon.setVisibility(View.VISIBLE);
+            updateAvatarInitials(name);
+        }
+    }
+
+    /**
+     * Prompts the user with a dialog to change, reset, or remove their profile picture.
+     */
+    private void promptChangeProfilePhoto() {
+        FirebaseUser user = firebaseAuth.getCurrentUser();
+        if (user == null) return;
+
+        File customPhotoFile = new File(getFilesDir(), "profile_" + user.getUid() + ".jpg");
+        boolean hasCustom = customPhotoFile.exists();
+        boolean hasGoogle = (user.getPhotoUrl() != null);
+
+        List<String> options = new ArrayList<>();
+        options.add("Choose from Gallery");
+        if (hasCustom && hasGoogle) {
+            options.add("Use Google Account Photo");
+        }
+        if (hasCustom || (ivProfilePicture != null && ivProfilePicture.getVisibility() == View.VISIBLE)) {
+            options.add("Remove Photo");
+        }
+
+        String[] items = options.toArray(new String[0]);
+        new AlertDialog.Builder(this)
+                .setTitle("Profile Picture")
+                .setItems(items, (dialog, which) -> {
+                    String selected = items[which];
+                    if ("Choose from Gallery".equals(selected)) {
+                        photoPickerLauncher.launch("image/*");
+                    } else if ("Use Google Account Photo".equals(selected)) {
+                        if (customPhotoFile.exists()) {
+                            customPhotoFile.delete();
+                        }
+                        loadUserProfile();
+                        Toast.makeText(this, "Reverted to Google Account photo", Toast.LENGTH_SHORT).show();
+                    } else if ("Remove Photo".equals(selected)) {
+                        removeProfilePhoto(user);
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    /**
+     * Persists the chosen custom image into internal app storage and updates UI.
+     */
+    private void handleCustomPhotoSelected(@NonNull Uri imageUri) {
+        FirebaseUser user = firebaseAuth.getCurrentUser();
+        if (user == null) return;
+
+        showLoading(true);
+        VaultExecutor.getInstance().execute(() -> {
+            try {
+                InputStream in = getContentResolver().openInputStream(imageUri);
+                Bitmap raw = BitmapFactory.decodeStream(in);
+                if (in != null) in.close();
+
+                if (raw == null) {
+                    runOnUiThread(() -> {
+                        hideLoading();
+                        Toast.makeText(this, "Unable to read selected image.", Toast.LENGTH_SHORT).show();
+                    });
+                    return;
+                }
+
+                Bitmap scaled = scaleBitmapDown(raw, 512);
+                File customPhotoFile = new File(getFilesDir(), "profile_" + user.getUid() + ".jpg");
+                saveBitmapToFile(scaled, customPhotoFile);
+
+                runOnUiThread(() -> {
+                    hideLoading();
+                    displayProfileBitmap(scaled);
+                    Toast.makeText(this, "Profile picture updated.", Toast.LENGTH_SHORT).show();
+                });
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error saving custom profile picture", e);
+                runOnUiThread(() -> {
+                    hideLoading();
+                    Toast.makeText(this, "Failed to set profile picture: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    private void removeProfilePhoto(@NonNull FirebaseUser user) {
+        File customPhotoFile = new File(getFilesDir(), "profile_" + user.getUid() + ".jpg");
+        if (customPhotoFile.exists()) {
+            customPhotoFile.delete();
+        }
+        File googlePhotoFile = new File(getFilesDir(), "google_photo_" + user.getUid() + ".jpg");
+        if (googlePhotoFile.exists()) {
+            googlePhotoFile.delete();
+        }
+
+        String name = user.getDisplayName();
+        showDefaultAvatar(name != null ? name : "Ghost Vault User");
+        Toast.makeText(this, "Profile picture removed.", Toast.LENGTH_SHORT).show();
+    }
+
+    private void saveBitmapToFile(@NonNull Bitmap bitmap, @NonNull File file) throws IOException {
+        try (FileOutputStream out = new FileOutputStream(file)) {
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+            out.flush();
+        }
+    }
+
+    private Bitmap scaleBitmapDown(@NonNull Bitmap bitmap, int maxDimension) {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        if (width <= maxDimension && height <= maxDimension) {
+            return bitmap;
+        }
+        float ratio = Math.min((float) maxDimension / width, (float) maxDimension / height);
+        int newWidth = Math.round(width * ratio);
+        int newHeight = Math.round(height * ratio);
+        return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
     }
 
     /**

@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Build;
@@ -172,6 +173,39 @@ public class VaultActivity extends AppCompatActivity
             return;
         }
         setupFirestoreListener(user.getUid());
+        updateToolbarProfileIcon(user);
+    }
+
+    private void updateToolbarProfileIcon(FirebaseUser user) {
+        ImageView btnOpenProfile = findViewById(R.id.btn_open_profile);
+        if (btnOpenProfile == null || user == null) return;
+
+        File customPhoto = new File(getFilesDir(), "profile_" + user.getUid() + ".jpg");
+        File googlePhoto = new File(getFilesDir(), "google_photo_" + user.getUid() + ".jpg");
+        File targetFile = customPhoto.exists() ? customPhoto : (googlePhoto.exists() ? googlePhoto : null);
+
+        if (targetFile != null) {
+            try {
+                Bitmap b = BitmapFactory.decodeFile(targetFile.getAbsolutePath());
+                if (b != null) {
+                    int size = Math.min(b.getWidth(), b.getHeight());
+                    Bitmap circular = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+                    android.graphics.Canvas canvas = new android.graphics.Canvas(circular);
+                    android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+                    canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint);
+                    paint.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN));
+                    canvas.drawBitmap(b, (size - b.getWidth()) / 2f, (size - b.getHeight()) / 2f, paint);
+
+                    btnOpenProfile.setPadding(0, 0, 0, 0);
+                    btnOpenProfile.setImageBitmap(circular);
+                    return;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        int padding = (int) (8 * getResources().getDisplayMetrics().density);
+        btnOpenProfile.setPadding(padding, padding, padding, padding);
+        btnOpenProfile.setImageResource(R.drawable.ic_person);
     }
 
     @Override
