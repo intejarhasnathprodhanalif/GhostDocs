@@ -43,6 +43,7 @@ import com.ghostdocs.vault.service.WatcherService;
 import com.ghostdocs.vault.tasks.BaseVaultTask;
 import com.ghostdocs.vault.tasks.PdfGeneratorTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
+import com.ghostdocs.vault.util.NetworkHelper;
 import com.ghostdocs.vault.util.PdfExportHelper;
 import com.ghostdocs.vault.util.PermissionHelper;
 import com.ghostdocs.vault.util.QrCodeGenerator;
@@ -512,6 +513,16 @@ public class VaultActivity extends AppCompatActivity
             return;
         }
 
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "rename this document in the cloud vault",
+                    null
+            );
+            return;
+        }
+
         firestore.collection("users")
                 .document(user.getUid())
                 .collection("documents")
@@ -585,6 +596,16 @@ public class VaultActivity extends AppCompatActivity
 
         // Runnable for Cloud Browser mode
         Runnable showCloudQr = () -> {
+            if (!NetworkHelper.isOnline(this)) {
+                NetworkHelper.showNetworkInterruptionDialog(
+                        this,
+                        NetworkHelper.getInterruptionScenario(this),
+                        "generate a cloud viewing QR code",
+                        showAirGappedQr
+                );
+                return;
+            }
+
             btnModeCloud.setTextColor(getResources().getColor(R.color.ghostPrimary, getTheme()));
             btnModeAirgap.setTextColor(getResources().getColor(R.color.ghostOnSurfaceMuted, getTheme()));
             pbQr.setVisibility(View.VISIBLE);
@@ -1106,6 +1127,16 @@ public class VaultActivity extends AppCompatActivity
     private void deleteDocument(DocumentModel document, @Nullable String successMessage) {
         FirebaseUser user = firebaseAuth.getCurrentUser();
         if (user == null || document.getDocId() == null) return;
+
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "delete this document from the cloud vault",
+                    null
+            );
+            return;
+        }
 
         // Clean up encrypted file on device
         if (document.getEncryptedPath() != null && !document.getEncryptedPath().isEmpty()) {

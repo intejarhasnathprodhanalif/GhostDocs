@@ -17,6 +17,7 @@ import androidx.core.app.NotificationManagerCompat;
 import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.service.WatcherService;
 import com.ghostdocs.vault.tasks.VaultExecutor;
+import com.ghostdocs.vault.util.NetworkHelper;
 
 import java.io.InputStream;
 
@@ -124,6 +125,16 @@ public class SecurePromptActivity extends AppCompatActivity {
      * Dispatches secure command to WatcherService to perform encryption and delete original.
      */
     private void confirmSecure() {
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "secure captured media into the vault",
+                    null
+            );
+            return;
+        }
+
         if (notificationId != -1) {
             NotificationManagerCompat.from(this).cancel(notificationId);
         }

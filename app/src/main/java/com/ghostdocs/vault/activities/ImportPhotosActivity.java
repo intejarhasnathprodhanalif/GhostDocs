@@ -1,12 +1,18 @@
 package com.ghostdocs.vault.activities;
 
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.ContentUris;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -39,6 +45,7 @@ import com.ghostdocs.vault.tasks.EncryptTask;
 import com.ghostdocs.vault.tasks.OcrTask;
 import com.ghostdocs.vault.tasks.PdfGeneratorTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
+import com.ghostdocs.vault.util.NetworkHelper;
 import com.ghostdocs.vault.util.NotificationHelper;
 import com.ghostdocs.vault.util.PdfExportHelper;
 import com.google.android.gms.tasks.Tasks;
@@ -64,6 +71,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * ImportPhotosActivity — Scans, imports, and vaults pre-existing device screenshots & photos.
@@ -113,6 +123,10 @@ public class ImportPhotosActivity extends AppCompatActivity
     private final List<GalleryPhotoItem> displayedPhotoList = new ArrayList<>();
     private final Set<String>          vaultedUriStrings    = new HashSet<>();
     private boolean                    isSecuringInProgress = false;
+    private volatile boolean           isSecuringCancelled  = false;
+    private volatile String            securingInterruptionScenario = null;
+    private ConnectivityManager.NetworkCallback securingNetworkCallback = null;
+    private BroadcastReceiver          airplaneModeReceiver = null;
 
     // ── Android 11+ Batch Deletion Launcher ──────────────────────────────────
     private final ActivityResultLauncher<IntentSenderRequest> deleteIntentLauncher =
@@ -172,6 +186,12 @@ public class ImportPhotosActivity extends AppCompatActivity
             return;
         }
         super.onBackPressed();
+    }
+
+    @Override
+    protected void onDestroy() {
+        unregisterNetworkListeners();
+        super.onDestroy();
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -675,8 +695,54 @@ public class ImportPhotosActivity extends AppCompatActivity
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // Pipeline Securing Execution (Worker Thread)
+    // Pipeline Securing Execution (Worker Thread with Network Interruption Guard)
     // ════════════════════════════════════════════════════════════════════════
+
+    private void handleNetworkInterruption() {
+        if (isSecuringInProgress) {
+            isSecuringCancelled = true;
+            if (securingInterruptionScenario == null) {
+                securingInterruptionScenario = NetworkHelper.isAirplaneModeOn(this)
+                        ? NetworkHelper.SCENARIO_AIRPLANE_MODE
+                        : NetworkHelper.SCENARIO_NETWORK_LOST;
+            }
+            Log.w(TAG, "Securing pipeline interrupted by network change: " + securingInterruptionScenario);
+        }
+    }
+
+    private void unregisterNetworkListeners() {
+        if (securingNetworkCallback != null) {
+            try {
+                ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                if (cm != null) {
+                    cm.unregisterNetworkCallback(securingNetworkCallback);
+                }
+            } catch (Exception ignored) {}
+            securingNetworkCallback = null;
+        }
+
+        if (airplaneModeReceiver != null) {
+            try {
+                unregisterReceiver(airplaneModeReceiver);
+            } catch (Exception ignored) {}
+            airplaneModeReceiver = null;
+        }
+    }
+
+    private void cleanupTemporaryFiles(@Nullable String encryptedPath, @Nullable String pdfPath) {
+        if (encryptedPath != null && !encryptedPath.isEmpty()) {
+            try {
+                File enc = new File(encryptedPath);
+                if (enc.exists()) enc.delete();
+            } catch (Exception ignored) {}
+        }
+        if (pdfPath != null && !pdfPath.isEmpty()) {
+            try {
+                File pdf = new File(pdfPath);
+                if (pdf.exists()) pdf.delete();
+            } catch (Exception ignored) {}
+        }
+    }
 
     private void startSecuringSelectedPhotos() {
         List<GalleryPhotoItem> selectedItems = galleryAdapter.getSelectedItems();
@@ -691,11 +757,71 @@ public class ImportPhotosActivity extends AppCompatActivity
             return;
         }
 
+        // Pre-check: Terminate immediately if offline or in Airplane Mode before starting
+        if (!NetworkHelper.isOnline(this)) {
+            String scenario = NetworkHelper.getInterruptionScenario(this);
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    scenario,
+                    "secure documents into the cloud vault",
+                    null
+            );
+            return;
+        }
+
         boolean deleteOriginals = cbDeleteOriginals.isChecked();
+        isSecuringCancelled = false;
+        securingInterruptionScenario = null;
         isSecuringInProgress = true;
         layoutProgressOverlay.setVisibility(View.VISIBLE);
         pbDeterminateBar.setProgress(0);
         pbDeterminateBar.setMax(selectedItems.size());
+
+        // Register real-time network listener to catch mid-process network cut
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm != null) {
+                securingNetworkCallback = new ConnectivityManager.NetworkCallback() {
+                    @Override
+                    public void onLost(@NonNull Network network) {
+                        handleNetworkInterruption();
+                    }
+
+                    @Override
+                    public void onUnavailable() {
+                        handleNetworkInterruption();
+                    }
+
+                    @Override
+                    public void onCapabilitiesChanged(@NonNull Network network, @NonNull NetworkCapabilities caps) {
+                        if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                            handleNetworkInterruption();
+                        }
+                    }
+                };
+                cm.registerDefaultNetworkCallback(securingNetworkCallback);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Unable to register network callback", e);
+        }
+
+        // Register dynamic Airplane Mode broadcast receiver
+        try {
+            airplaneModeReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (Intent.ACTION_AIRPLANE_MODE_CHANGED.equals(intent.getAction())) {
+                        boolean isAirplane = intent.getBooleanExtra("state", false);
+                        if (isAirplane) {
+                            handleNetworkInterruption();
+                        }
+                    }
+                }
+            };
+            registerReceiver(airplaneModeReceiver, new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED));
+        } catch (Exception e) {
+            Log.w(TAG, "Unable to register airplane mode receiver", e);
+        }
 
         VaultExecutor.getInstance().execute(() -> {
             int total = selectedItems.size();
@@ -703,6 +829,16 @@ public class ImportPhotosActivity extends AppCompatActivity
             List<Uri> pendingDeleteUris = new ArrayList<>();
 
             for (int i = 0; i < total; i++) {
+                // Interruption Guard: Abort loop immediately if network dropped or Airplane Mode was enabled
+                if (isSecuringCancelled || !NetworkHelper.isOnline(ImportPhotosActivity.this)) {
+                    isSecuringCancelled = true;
+                    if (securingInterruptionScenario == null) {
+                        securingInterruptionScenario = NetworkHelper.getInterruptionScenario(ImportPhotosActivity.this);
+                    }
+                    Log.w(TAG, "Aborting batch securing loop due to network interruption: " + securingInterruptionScenario);
+                    break;
+                }
+
                 GalleryPhotoItem item = selectedItems.get(i);
                 int currentIndex = i + 1;
 
@@ -712,18 +848,17 @@ public class ImportPhotosActivity extends AppCompatActivity
                     pbDeterminateBar.setProgress(currentIndex);
                 });
 
-                try {
-                    String docType;
-                    String title;
-                    List<String> tags;
-                    String fullOcrText;
-                    String encryptedPath;
-                    String pdfPath = "";
-                    String docId = UUID.randomUUID().toString();
+                String docType;
+                String title;
+                List<String> tags;
+                String fullOcrText;
+                String encryptedPath = null;
+                String pdfPath = "";
+                String docId = UUID.randomUUID().toString();
 
+                try {
                     if (item.isPdf()) {
                         // ── PDF PIPELINE ──
-                        // 1. Render page 1 to Bitmap for ML Kit OCR & classification
                         Bitmap page1Bitmap = PdfExportHelper.renderFirstPage(this, item.getUri(), 1200);
                         if (page1Bitmap == null) {
                             page1Bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
@@ -742,7 +877,16 @@ public class ImportPhotosActivity extends AppCompatActivity
                             page1Bitmap.recycle();
                         }
 
-                        // 2. Read full PDF bytes
+                        // Interruption check before PDF encryption
+                        if (isSecuringCancelled || !NetworkHelper.isOnline(ImportPhotosActivity.this)) {
+                            isSecuringCancelled = true;
+                            if (securingInterruptionScenario == null) {
+                                securingInterruptionScenario = NetworkHelper.getInterruptionScenario(ImportPhotosActivity.this);
+                            }
+                            break;
+                        }
+
+                        // Read full PDF bytes
                         byte[] pdfBytes;
                         try (InputStream is = getContentResolver().openInputStream(item.getUri());
                              ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -754,11 +898,11 @@ public class ImportPhotosActivity extends AppCompatActivity
                             pdfBytes = baos.toByteArray();
                         }
 
-                        // 3. Hardware AES-256-GCM encryption on raw PDF bytes
+                        // Hardware AES-256-GCM encryption on raw PDF bytes
                         File encFile = AesEncryptionHelper.getInstance().encryptBytesToFile(this, pdfBytes, docId);
                         encryptedPath = encFile.getAbsolutePath();
 
-                        // 4. Save searchable PDF in export directory
+                        // Save searchable PDF in export directory
                         File exportDir = new File(getExternalFilesDir(null), "GhostDocs/exports");
                         if (!exportDir.exists()) exportDir.mkdirs();
                         String safeTitle = PdfExportHelper.sanitizeFilename(title);
@@ -769,25 +913,11 @@ public class ImportPhotosActivity extends AppCompatActivity
                         }
                         pdfPath = exportedPdf.getAbsolutePath();
 
-                        // 5. Handle original deletion if requested
-                        if (deleteOriginals) {
-                            boolean deleted = false;
-                            try {
-                                int rows = getContentResolver().delete(item.getUri(), null, null);
-                                deleted = rows > 0;
-                            } catch (Exception ignored) {}
-                            if (!deleted) {
-                                pendingDeleteUris.add(item.getUri());
-                            }
-                        }
-
                     } else {
                         // ── IMAGE PIPELINE ──
-                        // Step 1: Smart Crop & Flatten
                         CropTask cropTask = new CropTask(this, item.getUri(), null);
                         Bitmap processedBitmap = cropTask.executeDirectly();
 
-                        // Step 2: ML Kit OCR & Classifier Engine
                         OcrTask ocrTask = new OcrTask(this, processedBitmap, item.getDisplayName(), null);
                         OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
 
@@ -796,17 +926,24 @@ public class ImportPhotosActivity extends AppCompatActivity
                         tags = ocrResult.getClassification().getTags();
                         fullOcrText = ocrResult.getFullText();
 
-                        // Step 3: Hardware AES-256-GCM Encryption
-                        EncryptTask encryptTask = new EncryptTask(this, processedBitmap, item.getUri(), docId, deleteOriginals, null);
+                        // Interruption check before image encryption
+                        if (isSecuringCancelled || !NetworkHelper.isOnline(ImportPhotosActivity.this)) {
+                            isSecuringCancelled = true;
+                            if (securingInterruptionScenario == null) {
+                                securingInterruptionScenario = NetworkHelper.getInterruptionScenario(ImportPhotosActivity.this);
+                            }
+                            if (processedBitmap != null && !processedBitmap.isRecycled()) {
+                                processedBitmap.recycle();
+                            }
+                            break;
+                        }
+
+                        // Hardware AES-256-GCM Encryption (Do not delete original yet — wait for Firestore sync)
+                        EncryptTask encryptTask = new EncryptTask(this, processedBitmap, item.getUri(), docId, false, null);
                         EncryptTask.EncryptResult encryptResult = encryptTask.executeDirectly();
                         encryptedPath = encryptResult.getEncryptedPath();
 
-                        // If deletion was requested but blocked by Android 11+ Scoped Storage, queue URI for batch prompt
-                        if (deleteOriginals && !encryptResult.isOriginalDeleted()) {
-                            pendingDeleteUris.add(item.getUri());
-                        }
-
-                        // Step 4: Searchable PDF Generation
+                        // Searchable PDF Generation
                         try {
                             PdfGeneratorTask pdfTask = new PdfGeneratorTask(
                                     this,
@@ -824,13 +961,22 @@ public class ImportPhotosActivity extends AppCompatActivity
                             Log.w(TAG, "Searchable PDF skipped for " + item.getDisplayName(), pdfEx);
                         }
 
-                        // Recycle bitmap
                         if (processedBitmap != null && !processedBitmap.isRecycled()) {
                             processedBitmap.recycle();
                         }
                     }
 
-                    // Step 5: Push metadata to Cloud Firestore
+                    // Interruption check before pushing to Cloud Firestore
+                    if (isSecuringCancelled || !NetworkHelper.isOnline(ImportPhotosActivity.this)) {
+                        isSecuringCancelled = true;
+                        if (securingInterruptionScenario == null) {
+                            securingInterruptionScenario = NetworkHelper.getInterruptionScenario(ImportPhotosActivity.this);
+                        }
+                        cleanupTemporaryFiles(encryptedPath, pdfPath);
+                        break;
+                    }
+
+                    // Push metadata to Cloud Firestore with strict 5-second network timeout
                     long timestamp = System.currentTimeMillis();
                     DocumentModel docModel = new DocumentModel(
                             docId,
@@ -850,20 +996,75 @@ public class ImportPhotosActivity extends AppCompatActivity
                             .document(currentUser.getUid())
                             .collection("documents")
                             .document(docId)
-                            .set(docModel));
+                            .set(docModel), 5, TimeUnit.SECONDS);
 
+                    // Firestore sync confirmed! Mark as vaulted
                     vaultedUriStrings.add(item.getUri().toString());
                     successCount++;
 
+                    // Now safely handle original deletion (only after cloud commit succeeded)
+                    if (deleteOriginals) {
+                        boolean deleted = false;
+                        try {
+                            int rows = getContentResolver().delete(item.getUri(), null, null);
+                            deleted = rows > 0;
+                        } catch (Exception ignored) {}
+                        if (!deleted) {
+                            pendingDeleteUris.add(item.getUri());
+                        }
+                    }
+
+                } catch (TimeoutException te) {
+                    Log.e(TAG, "Network timeout while syncing doc to Firestore: " + item.getDisplayName(), te);
+                    isSecuringCancelled = true;
+                    securingInterruptionScenario = NetworkHelper.isAirplaneModeOn(ImportPhotosActivity.this)
+                            ? NetworkHelper.SCENARIO_AIRPLANE_MODE
+                            : NetworkHelper.SCENARIO_NETWORK_LOST;
+                    cleanupTemporaryFiles(encryptedPath, pdfPath);
+                    break;
+                } catch (ExecutionException ee) {
+                    Log.e(TAG, "Execution error while syncing doc to Firestore: " + item.getDisplayName(), ee);
+                    if (!NetworkHelper.isOnline(ImportPhotosActivity.this)) {
+                        isSecuringCancelled = true;
+                        securingInterruptionScenario = NetworkHelper.getInterruptionScenario(ImportPhotosActivity.this);
+                        cleanupTemporaryFiles(encryptedPath, pdfPath);
+                        break;
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, "Failed securing item: " + item.getDisplayName(), e);
+                    if (!NetworkHelper.isOnline(ImportPhotosActivity.this)) {
+                        isSecuringCancelled = true;
+                        securingInterruptionScenario = NetworkHelper.getInterruptionScenario(ImportPhotosActivity.this);
+                        cleanupTemporaryFiles(encryptedPath, pdfPath);
+                        break;
+                    }
                 }
             }
 
             final int finalSuccess = successCount;
+            final boolean wasCancelled = isSecuringCancelled;
+            final String interruptionScenario = securingInterruptionScenario;
+            final int totalRequested = total;
+
             runOnUiThread(() -> {
+                unregisterNetworkListeners();
                 isSecuringInProgress = false;
                 layoutProgressOverlay.setVisibility(View.GONE);
+
+                if (wasCancelled) {
+                    String scenario = interruptionScenario != null
+                            ? interruptionScenario
+                            : NetworkHelper.getInterruptionScenario(ImportPhotosActivity.this);
+
+                    NetworkHelper.showSecuringInterruptedDialog(
+                            ImportPhotosActivity.this,
+                            scenario,
+                            finalSuccess,
+                            totalRequested,
+                            () -> scanGalleryScreenshots()
+                    );
+                    return;
+                }
 
                 Toast.makeText(ImportPhotosActivity.this,
                         "🎉 " + finalSuccess + " documents successfully secured into vault!",

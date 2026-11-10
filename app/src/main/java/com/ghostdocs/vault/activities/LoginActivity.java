@@ -17,6 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.ghostdocs.vault.R;
+import com.ghostdocs.vault.util.NetworkHelper;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -210,6 +211,16 @@ public class LoginActivity extends AppCompatActivity {
         if (!validateInputs())
             return;
 
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "sign in to your vault account",
+                    null
+            );
+            return;
+        }
+
         String email = getEmailInput();
         String password = getPasswordInput();
 
@@ -239,6 +250,16 @@ public class LoginActivity extends AppCompatActivity {
     private void attemptRegister() {
         if (!validateInputs())
             return;
+
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "create a new vault account",
+                    null
+            );
+            return;
+        }
 
         String email = getEmailInput();
         String password = getPasswordInput();
@@ -280,6 +301,16 @@ public class LoginActivity extends AppCompatActivity {
 
     /** Launches the Google account picker intent. */
     private void launchGoogleSignIn() {
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "sign in with Google",
+                    null
+            );
+            return;
+        }
+
         showLoading(true);
         // Sign out from any previously cached Google account to force account picker
         googleSignInClient.signOut().addOnCompleteListener(task -> {
@@ -322,6 +353,17 @@ public class LoginActivity extends AppCompatActivity {
      *                {@link GoogleSignInAccount#getIdToken()}
      */
     private void firebaseAuthWithGoogle(String idToken) {
+        if (!NetworkHelper.isOnline(this)) {
+            showLoading(false);
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "complete Google authentication",
+                    null
+            );
+            return;
+        }
+
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
 
         firebaseAuth.signInWithCredential(credential)

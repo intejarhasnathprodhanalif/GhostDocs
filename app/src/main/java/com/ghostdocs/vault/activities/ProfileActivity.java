@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.tasks.VaultExecutor;
+import com.ghostdocs.vault.util.NetworkHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
@@ -344,6 +345,16 @@ public class ProfileActivity extends AppCompatActivity {
             return;
         }
 
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "update your username",
+                    null
+            );
+            return;
+        }
+
         String newName = etUsername.getText() != null ? etUsername.getText().toString().trim() : "";
         if (TextUtils.isEmpty(newName)) {
             tilUsername.setError("Please enter a username or display name");
@@ -394,6 +405,16 @@ public class ProfileActivity extends AppCompatActivity {
         FirebaseUser user = firebaseAuth.getCurrentUser();
         if (user == null) {
             redirectToLogin();
+            return;
+        }
+
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "update your password",
+                    null
+            );
             return;
         }
 
@@ -474,11 +495,30 @@ public class ProfileActivity extends AppCompatActivity {
             return;
         }
 
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "send a password reset email",
+                    null
+            );
+            return;
+        }
+
         final String email = user.getEmail();
         new AlertDialog.Builder(this)
                 .setTitle("📧 Reset Password")
                 .setMessage("Send password reset instructions to " + email + "?")
                 .setPositiveButton("Send Email", (dialog, which) -> {
+                    if (!NetworkHelper.isOnline(ProfileActivity.this)) {
+                        NetworkHelper.showNetworkInterruptionDialog(
+                                ProfileActivity.this,
+                                NetworkHelper.getInterruptionScenario(ProfileActivity.this),
+                                "send a password reset email",
+                                null
+                        );
+                        return;
+                    }
                     showLoading("Sending reset email...");
                     firebaseAuth.sendPasswordResetEmail(email)
                             .addOnCompleteListener(task -> {
@@ -506,11 +546,30 @@ public class ProfileActivity extends AppCompatActivity {
         FirebaseUser user = firebaseAuth.getCurrentUser();
         if (user == null || TextUtils.isEmpty(user.getEmail())) return;
 
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "send an email verification link",
+                    null
+            );
+            return;
+        }
+
         final String email = user.getEmail();
         new AlertDialog.Builder(this)
                 .setTitle("Verify Email Address")
                 .setMessage("Send email verification link to " + email + "?")
                 .setPositiveButton("Send Link", (dialog, which) -> {
+                    if (!NetworkHelper.isOnline(ProfileActivity.this)) {
+                        NetworkHelper.showNetworkInterruptionDialog(
+                                ProfileActivity.this,
+                                NetworkHelper.getInterruptionScenario(ProfileActivity.this),
+                                "send an email verification link",
+                                null
+                        );
+                        return;
+                    }
                     showLoading("Sending verification link...");
                     user.sendEmailVerification().addOnCompleteListener(task -> {
                         hideLoading();
@@ -564,6 +623,16 @@ public class ProfileActivity extends AppCompatActivity {
         FirebaseUser user = firebaseAuth.getCurrentUser();
         if (user == null) {
             redirectToLogin();
+            return;
+        }
+
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "delete your account and cloud vault",
+                    null
+            );
             return;
         }
 
