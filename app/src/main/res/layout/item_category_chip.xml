@@ -26,7 +26,7 @@
         android:textColor="@color/ghostOnSurfaceMuted"
         android:textSize="12sp"
         android:textStyle="bold"
-        tools:text="💳 Financial (4)" />
+        tools:text="Financial (4)" />
 
 </RelativeLayout>
 

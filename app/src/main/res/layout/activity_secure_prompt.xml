@@ -22,14 +22,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
+        <ImageView
             android:id="@+id/tv_prompt_shield"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
-            android:text="🛡️"
-            android:textSize="24sp" />
+            android:contentDescription="Security Shield"
+            android:src="@drawable/ic_shield_check" />
 
         <TextView
             android:id="@+id/tv_prompt_header_title"
@@ -149,7 +149,7 @@
             android:layout_toStartOf="@id/view_button_spacer"
             android:background="@drawable/bg_status_badge"
             android:gravity="center"
-            android:text="❌ Keep in Gallery"
+            android:text="Keep in Gallery"
             android:textColor="@color/ghostOnSurface"
             android:textSize="14sp"
             android:textStyle="bold" />
@@ -168,7 +168,7 @@
             android:layout_toEndOf="@id/view_button_spacer"
             android:background="@drawable/bg_chip_selected"
             android:gravity="center"
-            android:text="🔒 Secure to Vault"
+            android:text="Secure to Vault"
             android:textColor="@color/ghostOnPrimary"
             android:textSize="14sp"
             android:textStyle="bold" />

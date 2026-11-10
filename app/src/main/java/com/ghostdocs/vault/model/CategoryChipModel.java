@@ -67,9 +67,9 @@ public class CategoryChipModel {
     @NonNull
     public String getDisplayLabel() {
         if ("ALL".equals(id)) {
-            return emoji + " " + name + (count > 0 ? " (" + count + ")" : "");
+            return name + (count > 0 ? " (" + count + ")" : "");
         }
-        return emoji + " " + name + " (" + count + ")";
+        return name + " (" + count + ")";
     }
 }
 

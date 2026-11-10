@@ -223,18 +223,18 @@ public class VaultRecyclerAdapter
                 boolean isPdf = (doc.getTags() != null && doc.getTags().contains("PDF"))
                         || (doc.getTitle() != null && doc.getTitle().toLowerCase().endsWith(".pdf"));
                 if (isPdf) {
-                    tvDocIcon.setText("📄");
+                    tvDocIcon.setText("PDF");
                 } else if (doc.getDocType() != null) {
                     switch (doc.getDocType()) {
-                        case DocumentModel.TYPE_NID:          tvDocIcon.setText("🪪"); break;
-                        case DocumentModel.TYPE_RECEIPT:      tvDocIcon.setText("💳"); break;
-                        case DocumentModel.TYPE_PRESCRIPTION: tvDocIcon.setText("💊"); break;
-                        case DocumentModel.TYPE_PASSWORD:     tvDocIcon.setText("🔑"); break;
-                        case DocumentModel.TYPE_STUDY_NOTE:   tvDocIcon.setText("📚"); break;
-                        default:                              tvDocIcon.setText("🔐"); break;
+                        case DocumentModel.TYPE_NID:          tvDocIcon.setText("NID"); break;
+                        case DocumentModel.TYPE_RECEIPT:      tvDocIcon.setText("FIN"); break;
+                        case DocumentModel.TYPE_PRESCRIPTION: tvDocIcon.setText("MED"); break;
+                        case DocumentModel.TYPE_PASSWORD:     tvDocIcon.setText("KEY"); break;
+                        case DocumentModel.TYPE_STUDY_NOTE:   tvDocIcon.setText("NOTE"); break;
+                        default:                              tvDocIcon.setText("DOC"); break;
                     }
                 } else {
-                    tvDocIcon.setText("🔐");
+                    tvDocIcon.setText("DOC");
                 }
             }
 
@@ -245,6 +245,7 @@ public class VaultRecyclerAdapter
 
             // Dynamic soft squircle container for icon with subtle glowing border
             if (tvDocIcon != null) {
+                tvDocIcon.setTextColor(badgeColor);
                 int iconBgColor = Color.argb(30, Color.red(badgeColor), Color.green(badgeColor), Color.blue(badgeColor));
                 GradientDrawable iconDrawable = new GradientDrawable();
                 iconDrawable.setShape(GradientDrawable.RECTANGLE);

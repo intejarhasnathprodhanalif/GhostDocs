@@ -72,7 +72,7 @@
         android:layout_below="@id/container_qr"
         android:layout_marginTop="16dp"
         android:gravity="center"
-        android:text="📱 Air-Gapped Card: Scan with any phone camera or QR reader to verify document details without internet."
+        android:text="Air-Gapped Card: Scan with any phone camera or QR reader to verify document details without internet."
         android:textColor="@color/ghostOnSurfaceMuted"
         android:textSize="12sp"
         android:lineSpacingMultiplier="1.2" />

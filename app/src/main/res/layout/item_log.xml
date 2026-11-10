@@ -34,7 +34,7 @@
         android:textColor="@color/ghostOnSurface"
         android:textSize="14sp"
         android:textStyle="bold"
-        tools:text="🌓 App Theme" />
+        tools:text="App Theme" />
 
     <!-- Current Value / Capsule Badge / Navigation Arrow -->
     <TextView

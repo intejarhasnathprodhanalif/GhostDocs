@@ -87,7 +87,7 @@
             android:layout_marginEnd="6dp"
             android:paddingHorizontal="10dp"
             android:paddingVertical="0dp"
-            android:text="🖼️ Photos"
+            android:text="Photos"
             android:textSize="12sp" />
 
         <!-- Browse device PDFs button -->
@@ -101,7 +101,7 @@
             android:layout_marginEnd="6dp"
             android:paddingHorizontal="10dp"
             android:paddingVertical="0dp"
-            android:text="📄 PDFs"
+            android:text="PDFs"
             android:textSize="12sp" />
 
         <!-- Rescan device screenshots & documents button -->
@@ -113,7 +113,7 @@
             android:layout_alignParentEnd="true"
             android:paddingHorizontal="10dp"
             android:paddingVertical="0dp"
-            android:text="🔄 Rescan"
+            android:text="Rescan"
             android:textSize="12sp" />
 
     </RelativeLayout>
@@ -133,22 +133,12 @@
         tools:visibility="visible">
 
         <TextView
-            android:id="@+id/tv_suggestion_icon"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
-            android:layout_alignParentStart="true"
-            android:text="🛡️"
-            android:textSize="16sp" />
-
-        <TextView
             android:id="@+id/tv_watcher_suggestion_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
-            android:layout_toEndOf="@id/tv_suggestion_icon"
+            android:layout_alignParentStart="true"
             android:layout_toStartOf="@+id/btn_select_suggested"
-            android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
             android:text="Watcher Active: Sensitive photos suggested to secure."
             android:textColor="@color/ghostWarning"
@@ -164,7 +154,7 @@
             android:background="@drawable/bg_chip_unselected"
             android:paddingHorizontal="10dp"
             android:paddingVertical="5dp"
-            android:text="✨ Pick Suggested"
+            android:text="Pick Suggested"
             android:textColor="@color/ghostPrimary"
             android:textSize="11sp"
             android:textStyle="bold" />
@@ -241,8 +231,10 @@
             android:layout_centerHorizontal="true"
             android:background="@drawable/bg_brand_circle"
             android:gravity="center"
-            android:text="🖼️"
-            android:textSize="36sp" />
+            android:text="GD"
+            android:textColor="@color/ghostPrimary"
+            android:textSize="26sp"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tv_empty_headline"
@@ -305,7 +297,7 @@
             android:layout_below="@id/cb_delete_originals"
             android:layout_marginTop="4dp"
             android:enabled="false"
-            android:text="🔒 Secure Selected Photos (0)"
+            android:text="Secure Selected Photos (0)"
             android:textSize="14sp" />
 
     </RelativeLayout>

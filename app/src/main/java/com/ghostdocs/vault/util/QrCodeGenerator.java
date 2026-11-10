@@ -106,7 +106,7 @@ public final class QrCodeGenerator {
     @NonNull
     public static String buildHumanReadableCard(@NonNull DocumentModel document) {
         StringBuilder sb = new StringBuilder();
-        sb.append("🛡️ GHOSTDOCS SECURED VAULT\n");
+        sb.append("GHOSTDOCS SECURED VAULT\n");
         sb.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
         sb.append("Title:    ").append(document.getTitle() != null ? document.getTitle() : "Untitled").append("\n");
         sb.append("Category: ").append(document.getDocType() != null ? document.getDocType() : "OTHER").append("\n");

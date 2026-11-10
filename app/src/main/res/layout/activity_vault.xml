@@ -33,8 +33,10 @@
             android:layout_centerVertical="true"
             android:background="@drawable/bg_brand_circle"
             android:gravity="center"
-            android:text="👻"
-            android:textSize="20sp" />
+            android:text="GD"
+            android:textColor="@color/ghostPrimary"
+            android:textStyle="bold"
+            android:textSize="14sp" />
 
         <!-- App Name & Subtitle Container -->
         <RelativeLayout
@@ -63,7 +65,7 @@
         </RelativeLayout>
 
         <!-- Sign-out Circular Button -->
-        <TextView
+        <ImageView
             android:id="@+id/btn_sign_out"
             android:layout_width="36dp"
             android:layout_height="36dp"
@@ -73,13 +75,11 @@
             android:clickable="true"
             android:contentDescription="Sign out"
             android:focusable="true"
-            android:gravity="center"
-            android:text="⇥"
-            android:textColor="@color/ghostOnSurfaceMuted"
-            android:textSize="17sp" />
+            android:padding="8dp"
+            android:src="@drawable/ic_logout" />
 
         <!-- Settings Circular Button -->
-        <TextView
+        <ImageView
             android:id="@+id/btn_open_settings"
             android:layout_width="36dp"
             android:layout_height="36dp"
@@ -90,13 +90,11 @@
             android:clickable="true"
             android:contentDescription="Settings"
             android:focusable="true"
-            android:gravity="center"
-            android:text="⚙"
-            android:textColor="@color/ghostOnSurfaceMuted"
-            android:textSize="16sp" />
+            android:padding="8dp"
+            android:src="@drawable/ic_settings" />
 
         <!-- Import / Scan Old Photos Circular Button -->
-        <TextView
+        <ImageView
             android:id="@+id/btn_import_photos"
             android:layout_width="36dp"
             android:layout_height="36dp"
@@ -107,13 +105,11 @@
             android:clickable="true"
             android:contentDescription="Import old photos"
             android:focusable="true"
-            android:gravity="center"
-            android:text="📥"
-            android:textColor="@color/ghostPrimary"
-            android:textSize="15sp" />
+            android:padding="8dp"
+            android:src="@drawable/ic_import" />
 
         <!-- User Profile Circular Button -->
-        <TextView
+        <ImageView
             android:id="@+id/btn_open_profile"
             android:layout_width="36dp"
             android:layout_height="36dp"
@@ -124,10 +120,8 @@
             android:clickable="true"
             android:contentDescription="User profile"
             android:focusable="true"
-            android:gravity="center"
-            android:text="👤"
-            android:textColor="@color/ghostPrimary"
-            android:textSize="15sp" />
+            android:padding="8dp"
+            android:src="@drawable/ic_person" />
 
     </RelativeLayout>
 
@@ -155,7 +149,7 @@
             android:textColor="@color/ghostOnSurface"
             android:textSize="11sp"
             android:textStyle="bold"
-            tools:text="🛡️ 12 documents secured" />
+            tools:text="12 documents secured" />
 
         <!-- Watcher Status Capsule Pill -->
         <TextView
@@ -192,14 +186,14 @@
             android:background="@drawable/bg_pill_search"
             android:paddingHorizontal="14dp">
 
-            <TextView
+            <ImageView
                 android:id="@+id/tv_search_icon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
                 android:layout_alignParentStart="true"
                 android:layout_centerVertical="true"
-                android:text="🔍"
-                android:textSize="14sp" />
+                android:contentDescription="Search"
+                android:src="@drawable/ic_search" />
 
             <EditText
                 android:id="@+id/et_search_vault"
@@ -228,7 +222,7 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
-                android:text="✕"
+                android:text="X"
                 android:textColor="@color/ghostOnSurfaceMuted"
                 android:textSize="12sp"
                 android:visibility="gone"
@@ -295,8 +289,10 @@
             android:layout_height="76dp"
             android:background="@drawable/bg_brand_circle"
             android:gravity="center"
-            android:text="👻"
-            android:textSize="38sp" />
+            android:text="GD"
+            android:textColor="@color/ghostPrimary"
+            android:textSize="26sp"
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -326,7 +322,7 @@
             android:layout_height="44dp"
             android:layout_marginTop="20dp"
             android:paddingHorizontal="20dp"
-            android:text="📥 Secure Photos &amp; PDFs"
+            android:text="Secure Photos &amp; PDFs"
             android:textSize="13sp" />
 
     </LinearLayout>

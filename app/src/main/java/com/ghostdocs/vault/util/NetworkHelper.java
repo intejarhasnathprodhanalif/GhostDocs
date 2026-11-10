@@ -134,14 +134,14 @@ public final class NetworkHelper {
                 : "complete this operation";
 
         if (SCENARIO_AIRPLANE_MODE.equals(scenario)) {
-            title = "✈️ Airplane Mode Active";
+            title = "Airplane Mode Active";
             message.append("GhostDocs was unable to ").append(action).append(" because Airplane Mode is currently enabled on your device.\n\n")
                    .append("To proceed:\n")
                    .append("1. Turn off Airplane Mode in your device Quick Settings.\n")
                    .append("2. Connect to Wi-Fi or mobile data.\n")
                    .append("3. Try again.");
         } else {
-            title = "⚠️ Network Interrupted";
+            title = "Network Interrupted";
             message.append("GhostDocs was unable to ").append(action).append(" because the internet connection was lost or unavailable.\n\n")
                    .append("To proceed:\n")
                    .append("1. Verify your Wi-Fi or mobile data connection.\n")
@@ -178,29 +178,29 @@ public final class NetworkHelper {
         StringBuilder message = new StringBuilder();
 
         if (SCENARIO_AIRPLANE_MODE.equals(scenario)) {
-            title = "✈️ Airplane Mode Enabled — Securing Terminated";
+            title = "Airplane Mode Enabled — Securing Terminated";
             message.append("The securing process was immediately terminated because Airplane Mode was activated on your device.\n\n");
         } else {
-            title = "⚠️ Connection Lost — Securing Terminated";
+            title = "Connection Lost — Securing Terminated";
             message.append("The securing process was immediately terminated because your internet connection was lost.\n\n");
         }
 
         if (successCount > 0 && totalCount > 1) {
             int remaining = totalCount - successCount;
-            message.append("📊 Progress Summary:\n")
+            message.append("Progress Summary:\n")
                    .append("• ").append(successCount).append(" of ").append(totalCount).append(" documents were securely vaulted.\n")
                    .append("• ").append(remaining).append(" document(s) were safely aborted.\n\n")
-                   .append("🛡️ Data Protection Guarantee:\n")
+                   .append("Data Protection Guarantee:\n")
                    .append("Original photos for aborted documents were preserved in your gallery. No partial or corrupted files were created.\n\n");
         } else {
-            message.append("🛡️ Data Protection Guarantee:\n")
+            message.append("Data Protection Guarantee:\n")
                    .append("No documents were modified. Your original photos remain completely intact and safe in your device gallery.\n\n");
         }
 
         if (SCENARIO_AIRPLANE_MODE.equals(scenario)) {
-            message.append("👉 Turn off Airplane Mode and connect to the internet to secure your documents.");
+            message.append("Turn off Airplane Mode and connect to the internet to secure your documents.");
         } else {
-            message.append("👉 Check your Wi-Fi or mobile data connection and try again.");
+            message.append("Check your Wi-Fi or mobile data connection and try again.");
         }
 
         new MaterialAlertDialogBuilder(context)

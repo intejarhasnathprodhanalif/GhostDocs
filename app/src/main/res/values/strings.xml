@@ -39,7 +39,7 @@
     <string name="doc_channel_id">ghostdocs_doc_channel</string>
     <string name="doc_channel_name">Document Alerts</string>
     <string name="doc_channel_desc">Alerts when a sensitive document is detected and secured</string>
-    <string name="doc_detected_title">🔐 Secure Document Detected</string>
+    <string name="doc_detected_title">Secure Document Detected</string>
     <string name="doc_detected_text">Encrypted and stored in your vault. Original deleted.</string>
 
     <!-- ── Settings ────────────────────────────────────────────────────── -->

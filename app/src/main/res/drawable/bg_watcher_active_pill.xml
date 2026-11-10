@@ -7,3 +7,4 @@
         android:color="@color/ghostSuccess" />
     <corners android:radius="20dp" />
 </shape>
+

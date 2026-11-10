@@ -255,12 +255,12 @@ public class ProfileActivity extends AppCompatActivity {
 
         // 3. Verification Badge
         if (user.isEmailVerified()) {
-            tvEmailStatus.setText("✓ Email Verified");
+            tvEmailStatus.setText("Email Verified");
             tvEmailStatus.setBackgroundResource(R.drawable.bg_badge_verified);
             tvEmailStatus.setTextColor(getResources().getColor(R.color.ghostSuccess));
             tvEmailStatus.setOnClickListener(null);
         } else {
-            tvEmailStatus.setText("⚠ Unverified (Tap to verify)");
+            tvEmailStatus.setText("Unverified (Tap to verify)");
             tvEmailStatus.setBackgroundResource(R.drawable.bg_badge_unverified);
             tvEmailStatus.setTextColor(getResources().getColor(R.color.ghostWarning));
             tvEmailStatus.setOnClickListener(v -> handleSendVerificationEmail());
@@ -319,7 +319,7 @@ public class ProfileActivity extends AppCompatActivity {
     private void updateAvatarInitials(@NonNull String name) {
         String trimmed = name.trim();
         if (trimmed.isEmpty() || "Ghost Vault User".equalsIgnoreCase(trimmed)) {
-            tvAvatarIcon.setText("👻");
+            tvAvatarIcon.setText("GD");
             return;
         }
 
@@ -486,7 +486,7 @@ public class ProfileActivity extends AppCompatActivity {
                         tilConfirmPassword.setError(null);
 
                         new AlertDialog.Builder(ProfileActivity.this)
-                                .setTitle("🔒 Password Changed")
+                                .setTitle("Password Changed")
                                 .setMessage("Your GhostDocs vault password has been updated successfully.")
                                 .setPositiveButton("OK", null)
                                 .show();
@@ -528,7 +528,7 @@ public class ProfileActivity extends AppCompatActivity {
 
         final String email = user.getEmail();
         new AlertDialog.Builder(this)
-                .setTitle("📧 Reset Password")
+                .setTitle("Reset Password")
                 .setMessage("Send password reset instructions to " + email + "?")
                 .setPositiveButton("Send Email", (dialog, which) -> {
                     if (!NetworkHelper.isOnline(ProfileActivity.this)) {
@@ -630,8 +630,8 @@ public class ProfileActivity extends AppCompatActivity {
 
     private void confirmDeleteAccount() {
         new AlertDialog.Builder(this)
-                .setTitle("🗑️ Delete Account & Vault")
-                .setMessage("⚠️ WARNING: This will permanently erase your account, delete all encrypted files from your device vault, and remove all Firestore metadata.\n\nThis action CANNOT be undone. Are you sure you wish to continue?")
+                .setTitle("Delete Account & Vault")
+                .setMessage("WARNING: This will permanently erase your account, delete all encrypted files from your device vault, and remove all Firestore metadata.\n\nThis action CANNOT be undone. Are you sure you wish to continue?")
                 .setPositiveButton("DELETE EVERYTHING", (dialog, which) -> executeDeleteAccount())
                 .setNegativeButton("Cancel", null)
                 .show();

@@ -503,11 +503,11 @@ public class VaultActivity extends AppCompatActivity
         new AlertDialog.Builder(this)
                 .setTitle(document.getTitle())
                 .setItems(new String[]{
-                        "🖼️ Move to Gallery (Export JPG)",
-                        "📄 Open / Export PDF",
-                        "📱 Share QR (Air-Gapped)",
-                        "✏️ Rename Document",
-                        "🗑 Delete from Vault"
+                        "Move to Gallery (Export JPG)",
+                        "Open / Export PDF",
+                        "Share QR (Air-Gapped)",
+                        "Rename Document",
+                        "Delete from Vault"
                 }, (dialog, which) -> {
                     switch (which) {
                         case 0: exportOrShareJpg(document); break;
@@ -626,7 +626,7 @@ public class VaultActivity extends AppCompatActivity
                 if (qrBitmap != null) {
                     ivQr.setImageBitmap(qrBitmap);
                 }
-                tvInstructions.setText("📱 Air-Gapped Card: Scan with any phone camera or QR reader to verify document details without internet.");
+                tvInstructions.setText("Air-Gapped Card: Scan with any phone camera or QR reader to verify document details without internet.");
             });
         });
 
@@ -708,10 +708,10 @@ public class VaultActivity extends AppCompatActivity
         new AlertDialog.Builder(this)
                 .setTitle(title)
                 .setItems(new String[]{
-                        "📖 Open PDF",
-                        "📤 Share PDF",
-                        "📥 Move to Downloads",
-                        "❌ Cancel"
+                        "Open PDF",
+                        "Share PDF",
+                        "Move to Downloads",
+                        "Cancel"
                 }, (dialog, which) -> {
                     switch (which) {
                         case 0: PdfExportHelper.openPdf(this, pdfFile); break;

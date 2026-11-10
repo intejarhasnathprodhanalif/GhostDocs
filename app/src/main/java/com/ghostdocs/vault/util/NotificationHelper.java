@@ -190,7 +190,7 @@ public final class NotificationHelper {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        String title = "🛡️ Secure \"" + smartTitle + "\"?";
+        String title = "Secure \"" + smartTitle + "\"?";
         String contentText = "Detected " + docType + ". Tap Secure to encrypt in Vault, or Keep in Gallery.";
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(
@@ -202,8 +202,8 @@ public final class NotificationHelper {
                         .bigText(contentText + "\n\n" + (snippet.isEmpty() ? "" : "\"" + snippet + "\"")))
                 .setSmallIcon(android.R.drawable.ic_lock_lock)
                 .setContentIntent(contentPendingIntent)
-                .addAction(android.R.drawable.ic_menu_save, "🔒 Secure to Vault", securePendingIntent)
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "❌ Keep in Gallery", ignorePendingIntent)
+                .addAction(android.R.drawable.ic_menu_save, "Secure to Vault", securePendingIntent)
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Keep in Gallery", ignorePendingIntent)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setDefaults(NotificationCompat.DEFAULT_ALL);

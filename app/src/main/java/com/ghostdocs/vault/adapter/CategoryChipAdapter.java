@@ -52,13 +52,13 @@ public class CategoryChipAdapter extends RecyclerView.Adapter<CategoryChipAdapte
 
     private List<CategoryChipModel> initializeDefaultChips() {
         List<CategoryChipModel> list = new ArrayList<>();
-        list.add(new CategoryChipModel(CategoryChipModel.CATEGORY_ALL, "All", "📁", 0, true));
-        list.add(new CategoryChipModel(DocumentModel.TYPE_RECEIPT, "Financial", "💳", 0, false));
-        list.add(new CategoryChipModel(DocumentModel.TYPE_NID, "Identity", "🆔", 0, false));
-        list.add(new CategoryChipModel(DocumentModel.TYPE_PRESCRIPTION, "Medical", "💊", 0, false));
-        list.add(new CategoryChipModel(DocumentModel.TYPE_PASSWORD, "Passwords", "🔑", 0, false));
-        list.add(new CategoryChipModel(DocumentModel.TYPE_STUDY_NOTE, "Notes", "📚", 0, false));
-        list.add(new CategoryChipModel(DocumentModel.TYPE_OTHER, "General", "📄", 0, false));
+        list.add(new CategoryChipModel(CategoryChipModel.CATEGORY_ALL, "All", "", 0, true));
+        list.add(new CategoryChipModel(DocumentModel.TYPE_RECEIPT, "Financial", "", 0, false));
+        list.add(new CategoryChipModel(DocumentModel.TYPE_NID, "Identity", "", 0, false));
+        list.add(new CategoryChipModel(DocumentModel.TYPE_PRESCRIPTION, "Medical", "", 0, false));
+        list.add(new CategoryChipModel(DocumentModel.TYPE_PASSWORD, "Passwords", "", 0, false));
+        list.add(new CategoryChipModel(DocumentModel.TYPE_STUDY_NOTE, "Notes", "", 0, false));
+        list.add(new CategoryChipModel(DocumentModel.TYPE_OTHER, "General", "", 0, false));
         return list;
     }
 

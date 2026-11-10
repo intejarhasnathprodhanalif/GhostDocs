@@ -124,10 +124,10 @@ public class SettingsActivity extends AppCompatActivity {
         boolean excludeNotes  = prefs.getBoolean(PREF_EXCLUDE_NOTES,  true);
 
         settingsItems.add(new LogListAdapter.LogItem(                               // 0
-                "👤 User Profile & Security",
+                "User Profile & Security",
                 "Username, Password & Account"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 1
-                "🌓 App Theme",
+                "App Theme",
                 ThemeHelper.getThemeDisplayName(this)));
         settingsItems.add(new LogListAdapter.LogItem(                               // 2
                 getString(R.string.settings_auto_start),
@@ -142,13 +142,13 @@ public class SettingsActivity extends AppCompatActivity {
                 "Exclude Class Notes & Lecture Photos",
                 excludeNotes ? "ON (Saved in Gallery)" : "OFF"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 6
-                "🔒 Scan & Secure Old Photos",
+                "Scan & Secure Old Photos",
                 "Import pre-existing screenshots"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 7
                 "Storage Permissions",
-                PermissionHelper.hasAllRequiredPermissions(this) ? "✓ Granted" : "⚠ Required"));
+                PermissionHelper.hasAllRequiredPermissions(this) ? "Granted" : "Required"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 8
-                "📥 Restore All to Gallery (Unvault for Uninstall)",
+                "Restore All to Gallery (Unvault for Uninstall)",
                 "Restores all photos to Gallery"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 9
                 getString(R.string.settings_export_pdf)));
@@ -219,13 +219,13 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         String[] options = new String[] {
-                "🌙 Dark Mode (Ghost Aesthetic)",
-                "☀️ Light Mode (Clean Vault)",
-                "⚙️ Follow System"
+                "Dark Mode (Ghost Aesthetic)",
+                "Light Mode (Clean Vault)",
+                "Follow System"
         };
 
         new AlertDialog.Builder(this)
-                .setTitle("🌓 Choose App Theme")
+                .setTitle("Choose App Theme")
                 .setSingleChoiceItems(options, selectedIndex, (dialog, which) -> {
                     String chosenMode;
                     switch (which) {
@@ -308,7 +308,7 @@ public class SettingsActivity extends AppCompatActivity {
     /** Opens the system permission settings for GhostDocs. */
     private void openPermissions() {
         if (PermissionHelper.hasAllRequiredPermissions(this)) {
-            Toast.makeText(this, "All permissions granted ✓", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "All permissions granted", Toast.LENGTH_SHORT).show();
         } else {
             PermissionHelper.openAppSettings(this);
         }
@@ -320,7 +320,7 @@ public class SettingsActivity extends AppCompatActivity {
      */
     private void confirmRestoreAllToGallery() {
         new AlertDialog.Builder(this)
-                .setTitle("📥 Restore All Photos to Gallery")
+                .setTitle("Restore All Photos to Gallery")
                 .setMessage("This will decrypt every picture and screenshot in your vault and restore them directly into your phone's Gallery (in Pictures/GhostDocs).\n\n"
                         + "Use this before uninstalling GhostDocs so all your pictures are returned safely to your gallery.")
                 .setPositiveButton("Restore All to Gallery", (dialog, which) -> restoreAllImages())
@@ -395,7 +395,7 @@ public class SettingsActivity extends AppCompatActivity {
 
             runOnUiThread(() -> {
                 new AlertDialog.Builder(SettingsActivity.this)
-                        .setTitle("✅ Restoration Complete")
+                        .setTitle("Restoration Complete")
                         .setMessage("Successfully decrypted and restored " + finalRestored + " of " + finalTotal
                                 + " photos back into your phone's Gallery (Pictures/GhostDocs)!\n\n"
                                 + "All your images are now visible in your regular Gallery app. You can safely uninstall the app now if you wish.")
@@ -432,7 +432,7 @@ public class SettingsActivity extends AppCompatActivity {
     /** Shows a confirmation dialog before clearing the vault. */
     private void confirmClearVault() {
         new AlertDialog.Builder(this)
-                .setTitle("⚠ Clear Vault")
+                .setTitle("Clear Vault")
                 .setMessage("This will permanently delete ALL documents from your vault "
                         + "and Firestore. Encrypted files on device will also be removed.\n\n"
                         + "This action CANNOT be undone.")
@@ -482,13 +482,13 @@ public class SettingsActivity extends AppCompatActivity {
     /** Shows an About dialog with app info. */
     private void showAbout() {
         new AlertDialog.Builder(this)
-                .setTitle("👻 " + getString(R.string.app_name))
+                .setTitle(getString(R.string.app_name))
                 .setMessage(getString(R.string.app_tagline)
                         + "\n\nVersion 1.0.0"
                         + "\n\nAn intelligent Android security application that "
                         + "automatically detects, extracts, encrypts, and organises "
                         + "sensitive screenshots into a biometric-locked vault."
-                        + "\n\n💡 Tip: Before uninstalling the app, tap 'Restore All to Gallery' in Settings to return all your photos back to your regular Gallery!"
+                        + "\n\nTip: Before uninstalling the app, tap 'Restore All to Gallery' in Settings to return all your photos back to your regular Gallery!"
                         + "\n\n100% Java · Firebase · ML Kit · OpenCV · ZXing")
                 .setPositiveButton("OK", null)
                 .show();

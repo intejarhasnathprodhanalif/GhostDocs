@@ -38,8 +38,10 @@
                 android:layout_marginTop="16dp"
                 android:background="@drawable/bg_brand_circle"
                 android:gravity="center"
-                android:text="👻"
-                android:textSize="44sp"
+                android:text="GD"
+                android:textColor="@color/ghostPrimary"
+                android:textSize="28sp"
+                android:textStyle="bold"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />

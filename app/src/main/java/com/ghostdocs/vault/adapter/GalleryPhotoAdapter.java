@@ -89,7 +89,7 @@ public class GalleryPhotoAdapter extends RecyclerView.Adapter<GalleryPhotoAdapte
         long timestampMs = item.getDateAdded() > 100000000000L ? item.getDateAdded() : item.getDateAdded() * 1000L;
         String dateStr = DateFormat.format("MMM d, yyyy", timestampMs).toString();
         String sizeStr = Formatter.formatFileSize(context, item.getSize());
-        String formatPrefix = item.isPdf() ? "📄 PDF • " : "";
+        String formatPrefix = item.isPdf() ? "PDF • " : "";
         holder.tvDate.setText(formatPrefix + dateStr + " • " + sizeStr);
 
         // Vaulted & Selection state
@@ -112,7 +112,7 @@ public class GalleryPhotoAdapter extends RecyclerView.Adapter<GalleryPhotoAdapte
             if (item.isSuggested()) {
                 holder.tvSuggested.setVisibility(View.VISIBLE);
                 String reason = item.getSuggestionReason();
-                holder.tvSuggested.setText(reason.isEmpty() ? "✨ SUGGESTED" : "✨ " + reason);
+                holder.tvSuggested.setText(reason.isEmpty() ? "SUGGESTED" : reason);
                 holder.cardRoot.setStrokeColor(ContextCompat.getColor(context, R.color.ghostWarning));
                 holder.cardRoot.setStrokeWidth(3);
             } else {

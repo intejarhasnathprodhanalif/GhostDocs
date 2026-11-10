@@ -105,9 +105,9 @@
                         android:layout_alignParentTop="true"
                         android:background="@drawable/bg_circle_avatar"
                         android:gravity="center"
-                        android:text="👤"
+                        android:text="U"
                         android:textColor="@color/ghostPrimary"
-                        android:textSize="28sp"
+                        android:textSize="24sp"
                         android:textStyle="bold" />
 
                     <!-- User Display Name -->
@@ -147,7 +147,7 @@
                         android:background="@drawable/bg_badge_verified"
                         android:paddingHorizontal="8dp"
                         android:paddingVertical="3dp"
-                        android:text="✓ Email Verified"
+                        android:text="Email Verified"
                         android:textColor="@color/ghostSuccess"
                         android:textSize="11sp"
                         android:textStyle="bold" />
@@ -184,7 +184,7 @@
                         android:id="@+id/tv_section_name_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="👤 Display Name / Username"
+                        android:text="Display Name / Username"
                         android:textColor="@color/ghostPrimary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -232,7 +232,7 @@
                         android:layout_height="44dp"
                         android:layout_below="@id/til_username"
                         android:layout_marginTop="12dp"
-                        android:text="💾 Save Username"
+                        android:text="Save Username"
                         android:textSize="13sp" />
 
                 </RelativeLayout>
@@ -256,7 +256,7 @@
                         android:id="@+id/tv_section_password_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="🔑 Password &amp; Authentication"
+                        android:text="Password &amp; Authentication"
                         android:textColor="@color/ghostPrimary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -369,7 +369,7 @@
                             android:layout_height="44dp"
                             android:layout_below="@id/til_confirm_password"
                             android:layout_marginTop="12dp"
-                            android:text="🔒 Change Password"
+                            android:text="Change Password"
                             android:textSize="13sp" />
 
                         <!-- Send Password Reset Email Button -->
@@ -380,7 +380,7 @@
                             android:layout_height="44dp"
                             android:layout_below="@id/btn_update_password"
                             android:layout_marginTop="8dp"
-                            android:text="📧 Send Password Reset Email"
+                            android:text="Send Password Reset Email"
                             android:textSize="12sp" />
 
                     </RelativeLayout>
@@ -401,8 +401,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_centerVertical="true"
-                            android:text="🌐"
-                            android:textSize="20sp" />
+                            android:text="OAuth"
+                            android:textSize="14sp"
+                            android:textColor="@color/ghostPrimary"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="match_parent"
@@ -435,7 +437,7 @@
                         android:id="@+id/tv_section_stats_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="🛡️ Vault Security Status"
+                        android:text="Vault Security Status"
                         android:textColor="@color/ghostPrimary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -538,7 +540,7 @@
                         style="@style/Button.GhostDocs.Outlined"
                         android:layout_width="match_parent"
                         android:layout_height="44dp"
-                        android:text="⇥ Sign Out of GhostDocs"
+                        android:text="Sign Out of GhostDocs"
                         android:textSize="13sp" />
 
                     <com.google.android.material.button.MaterialButton
@@ -549,7 +551,7 @@
                         android:layout_below="@id/btn_profile_sign_out"
                         android:layout_marginTop="8dp"
                         android:strokeColor="@color/ghostError"
-                        android:text="🗑️ Delete Account &amp; Vault Data"
+                        android:text="Delete Account &amp; Vault Data"
                         android:textColor="@color/ghostError"
                         android:textSize="12sp" />
 

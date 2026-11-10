@@ -276,7 +276,7 @@ public class ImportPhotosActivity extends AppCompatActivity
     public void onSelectionChanged(int selectedCount, int totalCount) {
         tvSelectionCount.setText(selectedCount + " of " + totalCount + " selected");
         btnSecureSelected.setEnabled(selectedCount > 0);
-        btnSecureSelected.setText("🔒 Secure Selected Photos (" + selectedCount + ")");
+        btnSecureSelected.setText("Secure Selected Photos (" + selectedCount + ")");
 
         if (totalCount > 0 && selectedCount == totalCount) {
             cbSelectAll.setChecked(true);
@@ -454,16 +454,16 @@ public class ImportPhotosActivity extends AppCompatActivity
         }
         if (suggestedCount > 0) {
             if (tvWatcherSuggestionText != null) {
-                tvWatcherSuggestionText.setText("🛡️ Watcher Active: " + suggestedCount + " sensitive capture"
+                tvWatcherSuggestionText.setText("Watcher Active: " + suggestedCount + " sensitive capture"
                         + (suggestedCount > 1 ? "s" : "") + " suggested to secure");
             }
             if (btnSelectSuggested != null) {
                 btnSelectSuggested.setVisibility(View.VISIBLE);
-                btnSelectSuggested.setText("✨ Pick " + suggestedCount + " Suggested");
+                btnSelectSuggested.setText("Pick " + suggestedCount + " Suggested");
             }
         } else {
             if (tvWatcherSuggestionText != null) {
-                tvWatcherSuggestionText.setText("🛡️ Watcher Active: Scanning & suggesting sensitive photos");
+                tvWatcherSuggestionText.setText("Watcher Active: Scanning & suggesting sensitive photos");
             }
             if (btnSelectSuggested != null) {
                 btnSelectSuggested.setVisibility(View.GONE);
@@ -1067,7 +1067,7 @@ public class ImportPhotosActivity extends AppCompatActivity
                 }
 
                 Toast.makeText(ImportPhotosActivity.this,
-                        "🎉 " + finalSuccess + " documents successfully secured into vault!",
+                        finalSuccess + " documents successfully secured into vault!",
                         Toast.LENGTH_LONG).show();
 
                 if (finalSuccess > 0) {
