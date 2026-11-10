@@ -7,3 +7,4 @@
         android:color="@color/ghostDivider" />
     <corners android:radius="8dp" />
 </shape>
+

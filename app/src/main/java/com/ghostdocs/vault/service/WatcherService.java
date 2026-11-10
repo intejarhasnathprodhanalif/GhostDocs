@@ -45,18 +45,25 @@ import java.util.UUID;
 /**
  * WatcherService — The Invisible Background Guardian
  *
- * <p>Runs continuously as a Foreground Service to protect sensitive media in real-time.
- * Monitors Android's {@link MediaStore} via {@link MediaContentObserver}, dispatches heavy
- * image analysis tasks to {@link VaultExecutor}, executes ML Kit OCR & Regex parsing,
+ * <p>
+ * Runs continuously as a Foreground Service to protect sensitive media in
+ * real-time.
+ * Monitors Android's {@link MediaStore} via {@link MediaContentObserver},
+ * dispatches heavy
+ * image analysis tasks to {@link VaultExecutor}, executes ML Kit OCR & Regex
+ * parsing,
  * and streams live telemetry to Firebase Realtime Database and Cloud Firestore.
  *
- * <p><b>OOP Principles:</b>
+ * <p>
+ * <b>OOP Principles:</b>
  * <ul>
- *   <li><b>Inheritance:</b> Extends {@link Service}.</li>
- *   <li><b>Encapsulation:</b> Observer lifecycle, Realtime Database sync handles, and
- *       pipeline dispatching are private.</li>
- *   <li><b>Polymorphism:</b> Implements {@link MediaContentObserver.OnImageCapturedListener}
- *       to receive new media callbacks polymorphically.</li>
+ * <li><b>Inheritance:</b> Extends {@link Service}.</li>
+ * <li><b>Encapsulation:</b> Observer lifecycle, Realtime Database sync handles,
+ * and
+ * pipeline dispatching are private.</li>
+ * <li><b>Polymorphism:</b> Implements
+ * {@link MediaContentObserver.OnImageCapturedListener}
+ * to receive new media callbacks polymorphically.</li>
  * </ul>
  */
 public class WatcherService extends Service implements MediaContentObserver.OnImageCapturedListener {
@@ -64,20 +71,20 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
     private static final String TAG = "GhostDocs.Watcher";
 
     // ── Status Constants for Realtime Database ───────────────────────────────
-    public static final String STATUS_ACTIVE     = "ACTIVE";
-    public static final String STATUS_SCANNING   = "SCANNING";
+    public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_SCANNING = "SCANNING";
     public static final String STATUS_PROCESSING = "PROCESSING";
-    public static final String STATUS_OFFLINE    = "OFFLINE";
-    public static final String STATUS_STOPPED    = "STOPPED";
+    public static final String STATUS_OFFLINE = "OFFLINE";
+    public static final String STATUS_STOPPED = "STOPPED";
 
     // ── Explicit Actions for User Confirmation ───────────────────────────────
     public static final String ACTION_SECURE_CAPTURE = "com.ghostdocs.vault.ACTION_SECURE_CAPTURE";
     public static final String ACTION_IGNORE_CAPTURE = "com.ghostdocs.vault.ACTION_IGNORE_CAPTURE";
 
-    public static final String EXTRA_IMAGE_URI       = "extra_image_uri";
-    public static final String EXTRA_DISPLAY_NAME    = "extra_display_name";
-    public static final String EXTRA_MIME_TYPE       = "extra_mime_type";
-    public static final String EXTRA_DATE_ADDED      = "extra_date_added";
+    public static final String EXTRA_IMAGE_URI = "extra_image_uri";
+    public static final String EXTRA_DISPLAY_NAME = "extra_display_name";
+    public static final String EXTRA_MIME_TYPE = "extra_mime_type";
+    public static final String EXTRA_DATE_ADDED = "extra_date_added";
     public static final String EXTRA_NOTIFICATION_ID = "extra_notification_id";
 
     // ── Components ───────────────────────────────────────────────────────────
@@ -94,8 +101,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
         // 1. Immediately promote to Foreground Service with persistent notification
         Notification notification = NotificationHelper.buildWatcherNotification(
                 this,
-                getString(R.string.watcher_notification_text)
-        );
+                getString(R.string.watcher_notification_text));
         startForeground(NotificationHelper.WATCHER_NOTIFICATION_ID, notification);
 
         // 2. Initialize Realtime Database Sync
@@ -130,7 +136,8 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
         }
 
         String uriStr = intent.getStringExtra(EXTRA_IMAGE_URI);
-        if (uriStr == null) return;
+        if (uriStr == null)
+            return;
         Uri imageUri = Uri.parse(uriStr);
         String displayName = intent.getStringExtra(EXTRA_DISPLAY_NAME);
         String mimeType = intent.getStringExtra(EXTRA_MIME_TYPE);
@@ -177,7 +184,8 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
     // ════════════════════════════════════════════════════════════════════════
 
     private void registerMediaObserver() {
-        if (isObserving) return;
+        if (isObserving)
+            return;
 
         try {
             Handler handler = new Handler(Looper.getMainLooper());
@@ -186,18 +194,19 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             getContentResolver().registerContentObserver(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     true,
-                    mediaObserver
-            );
+                    mediaObserver);
 
             isObserving = true;
-            Log.i(TAG, "MediaContentObserver registered successfully on " + MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+            Log.i(TAG,
+                    "MediaContentObserver registered successfully on " + MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         } catch (Exception e) {
             Log.e(TAG, "Failed to register MediaContentObserver", e);
         }
     }
 
     private void unregisterMediaObserver() {
-        if (!isObserving || mediaObserver == null) return;
+        if (!isObserving || mediaObserver == null)
+            return;
         try {
             getContentResolver().unregisterContentObserver(mediaObserver);
             isObserving = false;
@@ -213,7 +222,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
 
     @Override
     public void onImageCaptured(@NonNull Uri imageUri, @NonNull String displayName,
-                                @NonNull String mimeType, long dateAdded) {
+            @NonNull String mimeType, long dateAdded) {
         Log.i(TAG, "Captured image event received in WatcherService: " + displayName);
 
         SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
@@ -229,7 +238,8 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             return;
         }
 
-        // Ask-First mode (Default): run OCR analysis and ask user before encrypting or deleting
+        // Ask-First mode (Default): run OCR analysis and ask user before encrypting or
+        // deleting
         updateWatcherStatus(STATUS_SCANNING, "Analyzing capture: " + displayName);
         updateForegroundNotification("Analyzing capture: " + displayName);
         VaultExecutor.getInstance().execute(() -> {
@@ -238,7 +248,8 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
     }
 
     /**
-     * Pre-analyzes captured media and posts an interactive notification asking the user
+     * Pre-analyzes captured media and posts an interactive notification asking the
+     * user
      * whether to encrypt the document into the vault or keep it in the gallery.
      */
     private void promptUserForCapture(Uri imageUri, String displayName, String mimeType, long dateAdded) {
@@ -285,8 +296,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                     dateAdded,
                     smartTitle,
                     docType,
-                    snippet
-            );
+                    snippet);
 
             updateForegroundNotification("Capture detected: Waiting for your confirmation.");
             updateWatcherStatus(STATUS_ACTIVE, "Waiting for confirmation: " + smartTitle);
@@ -324,7 +334,8 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
 
             Log.i(TAG, "Pipeline OCR complete -> Category: " + docType + ", Title: " + title);
 
-            // Step 2b: Exclude class lecture & notebook study notes from vault security if configured
+            // Step 2b: Exclude class lecture & notebook study notes from vault security if
+            // configured
             android.content.SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
             boolean excludeStudyNotes = prefs.getBoolean("exclude_study_notes", true);
 
@@ -359,8 +370,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                         ocrResult.getBoundingBoxes(),
                         docId,
                         title,
-                        null
-                );
+                        null);
                 File pdfFile = pdfTask.executeDirectly();
                 if (pdfFile != null && pdfFile.exists()) {
                     pdfPath = pdfFile.getAbsolutePath();
@@ -380,13 +390,12 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                         title,
                         fullOcrText,
                         encryptResult.getEncryptedPath(), // Verified AES encrypted path on device
-                        imageUri.toString(),              // Reference for thumbnail
-                        pdfPath,                          // Verified searchable PDF path
+                        imageUri.toString(), // Reference for thumbnail
+                        pdfPath, // Verified searchable PDF path
                         timestamp,
                         tags,
                         docType,
-                        currentUser.getUid()
-                );
+                        currentUser.getUid());
 
                 FirebaseFirestore.getInstance()
                         .collection("users")
@@ -423,6 +432,10 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
         }
     }
 
+    // ── Firebase Realtime Database Telemetry Endpoint ───────────────────────
+    public static final String RTDB_URL =
+            "https://ghostdocs-57c78-default-rtdb.asia-southeast1.firebasedatabase.app";
+
     // ════════════════════════════════════════════════════════════════════════
     // Firebase Realtime Database Sync
     // ════════════════════════════════════════════════════════════════════════
@@ -430,22 +443,32 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
     private void initRealtimeDatabaseSync() {
         try {
             FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-            if (currentUser != null) {
+            if (currentUser != null && currentUser.getUid() != null) {
                 currentUserId = currentUser.getUid();
-                watcherDbRef = FirebaseDatabase.getInstance()
-                        .getReference("watcher_status")
-                        .child(currentUserId);
-
-                // Configure onDisconnect handler to mark offline automatically
-                Map<String, Object> offlineMap = new HashMap<>();
-                offlineMap.put("status", STATUS_OFFLINE);
-                offlineMap.put("lastSeen", ServerValue.TIMESTAMP);
-                watcherDbRef.onDisconnect().updateChildren(offlineMap);
-
-                Log.d(TAG, "Firebase Realtime Database watcher sync initialized for user: " + currentUserId);
+            } else {
+                currentUserId = "device_" + android.provider.Settings.Secure.getString(
+                        getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
             }
+
+            FirebaseDatabase database;
+            try {
+                database = FirebaseDatabase.getInstance(RTDB_URL);
+            } catch (Exception e) {
+                database = FirebaseDatabase.getInstance();
+            }
+
+            watcherDbRef = database.getReference("watcher_status").child(currentUserId);
+
+            // Configure onDisconnect handler to mark offline automatically
+            Map<String, Object> offlineMap = new HashMap<>();
+            offlineMap.put("status", STATUS_OFFLINE);
+            offlineMap.put("details", "Device disconnected or service killed");
+            offlineMap.put("lastSeen", ServerValue.TIMESTAMP);
+            watcherDbRef.onDisconnect().updateChildren(offlineMap);
+
+            Log.i(TAG, "Firebase Realtime Database watcher sync initialized for user/device: " + currentUserId);
         } catch (Exception e) {
-            Log.w(TAG, "Firebase Realtime DB init deferred (Auth not ready or offline)", e);
+            Log.e(TAG, "Firebase Realtime DB init failed: " + e.getMessage(), e);
         }
     }
 
@@ -459,13 +482,20 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                 Map<String, Object> update = new HashMap<>();
                 update.put("status", status);
                 update.put("details", details);
-                update.put("device", Build.MANUFACTURER + " " + Build.MODEL + " (Android " + Build.VERSION.RELEASE + ")");
+                update.put("device",
+                        Build.MANUFACTURER + " " + Build.MODEL + " (Android " + Build.VERSION.RELEASE + ")");
                 update.put("updatedAt", ServerValue.TIMESTAMP);
 
-                watcherDbRef.updateChildren(update);
+                watcherDbRef.updateChildren(update)
+                        .addOnSuccessListener(unused ->
+                                Log.d(TAG, "Realtime DB status updated to: " + status + " (" + details + ")"))
+                        .addOnFailureListener(e ->
+                                Log.e(TAG, "Realtime DB status update FAILED: " + e.getMessage(), e));
+            } else {
+                Log.w(TAG, "watcherDbRef is null, cannot update status to: " + status);
             }
         } catch (Exception e) {
-            Log.w(TAG, "Failed to update Realtime Database status", e);
+            Log.e(TAG, "Failed to update Realtime Database status", e);
         }
     }
 
