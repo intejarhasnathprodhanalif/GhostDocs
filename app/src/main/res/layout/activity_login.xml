@@ -31,17 +31,15 @@
             android:paddingVertical="36dp">
 
             <!-- Ghost Brand Emblem -->
-            <TextView
+            <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/tv_logo"
-                android:layout_width="80dp"
-                android:layout_height="80dp"
+                android:layout_width="84dp"
+                android:layout_height="84dp"
                 android:layout_marginTop="16dp"
-                android:background="@drawable/bg_brand_circle"
-                android:gravity="center"
-                android:text="GD"
-                android:textColor="@color/ghostPrimary"
-                android:textSize="28sp"
-                android:textStyle="bold"
+                android:src="@drawable/ghostdocs_logo"
+                android:scaleType="centerCrop"
+                android:contentDescription="@string/app_name"
+                app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Medium"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />

@@ -1,4 +1,11 @@
-# 👻 GhostDocs (The Automated Secure Vault)
+# GhostDocs (The Automated Secure Vault)
+
+<p align="center">
+  <img src="ghostdocs_logo.jpg" alt="GhostDocs App Logo" width="160" style="border-radius: 28px;" />
+</p>
+<p align="center">
+  <b>Zero-Knowledge Hardware-Backed Encrypted Document Vault</b>
+</p>
 
 An intelligent Android security application that acts as an invisible background guardian, automatically detecting, extracting (OCR), encrypting, and organizing sensitive screenshots/photos into a biometric-locked PDF/QR wallet, with secure cloud synchronization.
 

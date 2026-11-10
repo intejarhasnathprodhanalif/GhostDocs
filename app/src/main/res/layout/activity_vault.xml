@@ -25,18 +25,16 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <!-- Ghost Emblem Icon -->
-        <TextView
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/tv_toolbar_icon"
             android:layout_width="38dp"
             android:layout_height="38dp"
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
-            android:background="@drawable/bg_brand_circle"
-            android:gravity="center"
-            android:text="GD"
-            android:textColor="@color/ghostPrimary"
-            android:textStyle="bold"
-            android:textSize="14sp" />
+            android:src="@drawable/ghostdocs_logo"
+            android:scaleType="centerCrop"
+            android:contentDescription="@string/app_name"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
 
         <!-- App Name & Subtitle Container -->
         <RelativeLayout

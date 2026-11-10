@@ -14,16 +14,14 @@
     tools:context=".activities.LaunchActivity">
 
     <!-- Glowing Ghost Emblem Icon -->
-    <TextView
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/tv_ghost_icon"
-        android:layout_width="96dp"
-        android:layout_height="96dp"
-        android:background="@drawable/bg_brand_circle"
-        android:gravity="center"
-        android:text="GD"
-        android:textColor="@color/ghostPrimary"
-        android:textSize="32sp"
-        android:textStyle="bold"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:src="@drawable/ghostdocs_logo"
+        android:scaleType="centerCrop"
+        android:contentDescription="@string/app_name"
+        app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Medium"
         app:layout_constraintBottom_toTopOf="@id/tv_app_name"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

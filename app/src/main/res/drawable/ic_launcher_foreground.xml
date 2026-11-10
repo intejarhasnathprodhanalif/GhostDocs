@@ -1,31 +1,93 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Document Fold Corner Accent (Top Right) -->
     <path
-        android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startY="49.59793"
-                android:startX="42.9492"
-                android:endY="92.4963"
-                android:endX="85.84757"
-                android:type="linear">
-                <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
-                <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
+        android:fillColor="#162D4A"
+        android:strokeColor="#00E5FF"
+        android:strokeAlpha="0.6"
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round"
+        android:pathData="M72,24 L82,34 L72,34 Z" />
+
+    <!-- Cryptographic Shield with Document Contour -->
     <path
-        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
+        android:fillColor="#0D1E36"
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="2.2"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M54,18 L72,24 L72,34 L84,34 L84,58 C84,80 68,96 54,102 C40,96 24,80 24,58 L24,24 Z" />
+
+    <!-- Hardware Vault Padlock Arch -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeAlpha="0.7"
+        android:strokeWidth="3.0"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M40,48 L40,36 C40,28 46,24 54,24 C62,24 68,28 68,36 L68,48" />
+
+    <!-- Floating Neon Cyber Ghost Silhouette -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M54,34
+            C43,34 36,41 36,52
+            L36,74
+            C36,77 39,78 41,76
+            C43,74 46,74 48,76
+            C50,78 52,78 54,76
+            C56,78 58,78 60,76
+            C62,74 65,74 67,76
+            C69,78 72,77 72,74
+            L72,52
+            C72,41 65,34 54,34 Z" />
+
+    <!-- Ghost Obsidian Mask Inset -->
+    <path
+        android:fillColor="#0A1324"
+        android:pathData="M54,38
+            C46,38 41,43 41,52
+            L41,70
+            C43,69 46,69 48,71
+            C50,73 52,73 54,71
+            C56,73 58,73 60,71
+            C62,69 65,69 67,70
+            L67,52
+            C67,43 62,38 54,38 Z" />
+
+    <!-- Piercing Cyber Ghost Eyes (Left & Right) -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M46.5,49 C46.5,46 48.5,45 50.5,46 C51.5,47.5 51.5,50 50,52 C48.5,53.5 46.5,52 46.5,49 Z" />
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M61.5,49 C61.5,46 59.5,45 57.5,46 C56.5,47.5 56.5,50 58,52 C59.5,53.5 61.5,52 61.5,49 Z" />
+
+    <!-- Cyber Eye Optic Cores -->
+    <path
         android:fillColor="#FFFFFF"
-        android:fillType="nonZero"
-        android:strokeWidth="1"
-        android:strokeColor="#00000000"/>
+        android:pathData="M48.5,48 A1,1 0 1,1 50.5,48 A1,1 0 1,1 48.5,48" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M57.5,48 A1,1 0 1,1 59.5,48 A1,1 0 1,1 57.5,48" />
+
+    <!-- Central Micro-Keyhole Vault -->
+    <path
+        android:fillColor="#00E5FF"
+        android:fillAlpha="0.8"
+        android:pathData="M54,58
+            A2.5,2.5 0 0,0 51.5,60.5
+            C51.5,61.8 52.3,62.8 53.2,63.2
+            L52.8,67
+            C52.8,67.5 53.3,67.8 53.8,67.8
+            L54.2,67.8
+            C54.7,67.8 55.2,67.5 55.2,67
+            L54.8,63.2
+            C55.7,62.8 56.5,61.8 56.5,60.5
+            A2.5,2.5 0 0,0 54,58 Z" />
+
 </vector>
