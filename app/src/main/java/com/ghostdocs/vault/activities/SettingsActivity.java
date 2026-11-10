@@ -500,6 +500,9 @@ public class SettingsActivity extends AppCompatActivity {
                 .setTitle("Sign Out")
                 .setMessage("Sign out of GhostDocs?")
                 .setPositiveButton("Sign Out", (d, w) -> {
+                    try {
+                        stopService(new android.content.Intent(this, com.ghostdocs.vault.service.WatcherService.class));
+                    } catch (Exception ignored) {}
                     FirebaseAuth.getInstance().signOut();
                     android.content.Intent intent = new android.content.Intent(
                             this, LaunchActivity.class);

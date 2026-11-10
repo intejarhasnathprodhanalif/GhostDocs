@@ -597,6 +597,9 @@ public class ProfileActivity extends AppCompatActivity {
                 .setTitle("Sign Out")
                 .setMessage("Are you sure you want to sign out of GhostDocs?")
                 .setPositiveButton("Sign Out", (dialog, which) -> {
+                    try {
+                        stopService(new Intent(this, com.ghostdocs.vault.service.WatcherService.class));
+                    } catch (Exception ignored) {}
                     firebaseAuth.signOut();
                     redirectToLogin();
                 })

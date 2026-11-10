@@ -59,6 +59,7 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.storage.FirebaseStorage;
@@ -368,6 +369,11 @@ public class VaultActivity extends AppCompatActivity
      * @param userId the Firebase Auth UID of the current user
      */
     private void setupFirestoreListener(String userId) {
+        if (firestoreListener != null) {
+            firestoreListener.remove();
+            firestoreListener = null;
+        }
+
         firestoreListener = firestore
                 .collection("users")
                 .document(userId)
@@ -376,7 +382,15 @@ public class VaultActivity extends AppCompatActivity
                 .addSnapshotListener((snapshots, error) -> {
 
                     if (error != null) {
-                        Log.e(TAG, "Firestore listener error.", error);
+                        Log.w(TAG, "Firestore snapshot listener terminated: " + error.getMessage());
+                        // If the user signed out, activity is finishing/destroyed, or permissions were revoked on sign-out, ignore cleanly!
+                        if (firebaseAuth.getCurrentUser() == null
+                                || isFinishing()
+                                || isDestroyed()
+                                || error.getCode() == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                            return;
+                        }
+
                         Toast.makeText(this,
                                 getString(R.string.error_firebase),
                                 Toast.LENGTH_SHORT).show();
@@ -1198,10 +1212,18 @@ public class VaultActivity extends AppCompatActivity
     }
 
     private void signOut() {
-        // Stop the watcher before signing out
+        // 1. Detach Firestore listener first so sign-out does not trigger PERMISSION_DENIED error callback
+        if (firestoreListener != null) {
+            firestoreListener.remove();
+            firestoreListener = null;
+        }
+
+        // 2. Stop the watcher before signing out
         if (isWatcherRunning) {
             stopService(new Intent(this, WatcherService.class));
         }
+
+        // 3. Clear auth session
         firebaseAuth.signOut();
         redirectToLaunch();
     }
