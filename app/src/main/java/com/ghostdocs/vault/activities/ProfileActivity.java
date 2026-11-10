@@ -509,7 +509,7 @@ public class ProfileActivity extends AppCompatActivity {
         FirebaseUser user = firebaseAuth.getCurrentUser();
         if (user == null) return;
 
-        showLoading(true);
+        showLoading("Updating profile picture...");
         VaultExecutor.getInstance().execute(() -> {
             try {
                 InputStream in = getContentResolver().openInputStream(imageUri);
