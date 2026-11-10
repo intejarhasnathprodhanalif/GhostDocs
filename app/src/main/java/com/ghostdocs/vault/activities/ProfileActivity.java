@@ -123,6 +123,27 @@ public class ProfileActivity extends AppCompatActivity {
         setupClickListeners();
         loadUserProfile();
         loadVaultStats();
+        animateProfileCards();
+    }
+
+    private void animateProfileCards() {
+        int[] cardIds = new int[] {
+                R.id.card_profile_header,
+                R.id.card_edit_name,
+                R.id.card_password,
+                R.id.card_vault_stats,
+                R.id.card_danger_zone
+        };
+        long delay = 60;
+        for (int id : cardIds) {
+            View card = findViewById(id);
+            if (card != null) {
+                card.setAlpha(0f);
+                card.setTranslationY(30f);
+                card.animate().alpha(1f).translationY(0f).setDuration(380).setStartDelay(delay).start();
+                delay += 80;
+            }
+        }
     }
 
     @Override

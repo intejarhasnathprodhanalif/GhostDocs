@@ -7,6 +7,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.Patterns;
 import android.view.View;
+import android.view.animation.OvershootInterpolator;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -110,6 +111,49 @@ public class LoginActivity extends AppCompatActivity {
         initFirebase();
         initGoogleSignIn();
         setClickListeners();
+        animateEntrance();
+    }
+
+    private void animateEntrance() {
+        View logo = findViewById(R.id.tv_logo);
+        View appName = findViewById(R.id.tv_app_name);
+        View tagline = findViewById(R.id.tv_tagline);
+        if (logo != null) {
+            logo.setAlpha(0f);
+            logo.setScaleX(0.7f);
+            logo.setScaleY(0.7f);
+            logo.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(450)
+                    .setInterpolator(new OvershootInterpolator()).start();
+        }
+        if (appName != null) {
+            appName.setAlpha(0f);
+            appName.setTranslationY(25f);
+            appName.animate().alpha(1f).translationY(0f).setDuration(400).setStartDelay(100).start();
+        }
+        if (tagline != null) {
+            tagline.setAlpha(0f);
+            tagline.animate().alpha(1f).setDuration(400).setStartDelay(180).start();
+        }
+        if (tilEmail != null) {
+            tilEmail.setAlpha(0f);
+            tilEmail.setTranslationY(25f);
+            tilEmail.animate().alpha(1f).translationY(0f).setDuration(400).setStartDelay(220).start();
+        }
+        if (tilPassword != null) {
+            tilPassword.setAlpha(0f);
+            tilPassword.setTranslationY(25f);
+            tilPassword.animate().alpha(1f).translationY(0f).setDuration(400).setStartDelay(280).start();
+        }
+        if (btnPrimaryAction != null) {
+            btnPrimaryAction.setAlpha(0f);
+            btnPrimaryAction.setTranslationY(25f);
+            btnPrimaryAction.animate().alpha(1f).translationY(0f).setDuration(400).setStartDelay(340).start();
+        }
+        if (btnGoogleSignIn != null) {
+            btnGoogleSignIn.setAlpha(0f);
+            btnGoogleSignIn.setTranslationY(25f);
+            btnGoogleSignIn.animate().alpha(1f).translationY(0f).setDuration(400).setStartDelay(400).start();
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -185,16 +229,33 @@ public class LoginActivity extends AppCompatActivity {
         hideError();
         clearInputErrors();
 
-        if (isSignInMode) {
-            tvSectionLabel.setText(getString(R.string.login_title));
-            btnPrimaryAction.setText(getString(R.string.btn_login_email));
-            tvToggleLabel.setText(getString(R.string.label_no_account));
-            tvToggleAction.setText(getString(R.string.btn_register));
+        if (btnPrimaryAction != null) {
+            btnPrimaryAction.animate().alpha(0f).scaleX(0.95f).scaleY(0.95f).setDuration(120).withEndAction(() -> {
+                if (isSignInMode) {
+                    tvSectionLabel.setText(getString(R.string.login_title));
+                    btnPrimaryAction.setText(getString(R.string.btn_login_email));
+                    tvToggleLabel.setText(getString(R.string.label_no_account));
+                    tvToggleAction.setText(getString(R.string.btn_register));
+                } else {
+                    tvSectionLabel.setText(getString(R.string.btn_register));
+                    btnPrimaryAction.setText(getString(R.string.btn_register));
+                    tvToggleLabel.setText("Already have an account?");
+                    tvToggleAction.setText(getString(R.string.btn_login_email));
+                }
+                btnPrimaryAction.animate().alpha(1f).scaleX(1.0f).scaleY(1.0f).setDuration(140).start();
+            }).start();
         } else {
-            tvSectionLabel.setText(getString(R.string.btn_register));
-            btnPrimaryAction.setText(getString(R.string.btn_register));
-            tvToggleLabel.setText("Already have an account?");
-            tvToggleAction.setText(getString(R.string.btn_login_email));
+            if (isSignInMode) {
+                tvSectionLabel.setText(getString(R.string.login_title));
+                btnPrimaryAction.setText(getString(R.string.btn_login_email));
+                tvToggleLabel.setText(getString(R.string.label_no_account));
+                tvToggleAction.setText(getString(R.string.btn_register));
+            } else {
+                tvSectionLabel.setText(getString(R.string.btn_register));
+                btnPrimaryAction.setText(getString(R.string.btn_register));
+                tvToggleLabel.setText("Already have an account?");
+                tvToggleAction.setText(getString(R.string.btn_login_email));
+            }
         }
     }
 

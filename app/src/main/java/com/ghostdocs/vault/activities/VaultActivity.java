@@ -1,5 +1,8 @@
 package com.ghostdocs.vault.activities;
 
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
+import android.animation.ValueAnimator;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
@@ -103,6 +106,8 @@ public class VaultActivity extends AppCompatActivity
     private TextView                  tvWatcherStatus;
     private FloatingActionButton      fabWatcherToggle;
     private EditText                  etSearchVault;
+    private View                      btnClearSearch;
+    private ObjectAnimator            watcherPulseAnimator;
 
     // ── Adapter & data ───────────────────────────────────────────────────────
     private VaultRecyclerAdapter      vaultAdapter;
@@ -199,6 +204,15 @@ public class VaultActivity extends AppCompatActivity
         tvWatcherStatus   = findViewById(R.id.tv_watcher_status);
         fabWatcherToggle  = findViewById(R.id.fab_watcher_toggle);
         etSearchVault     = findViewById(R.id.et_search_vault);
+        btnClearSearch    = findViewById(R.id.btn_clear_search);
+
+        if (btnClearSearch != null) {
+            btnClearSearch.setOnClickListener(v -> {
+                if (etSearchVault != null) {
+                    etSearchVault.setText("");
+                }
+            });
+        }
     }
 
     private void setupCategoryChips() {
@@ -229,6 +243,21 @@ public class VaultActivity extends AppCompatActivity
         rvVault.setLayoutManager(layoutManager);
         rvVault.setAdapter(vaultAdapter);
         rvVault.setHasFixedSize(false);
+
+        // Dynamic FAB auto-hide on scroll
+        rvVault.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                if (fabWatcherToggle != null) {
+                    if (dy > 8 && fabWatcherToggle.isShown()) {
+                        fabWatcherToggle.hide();
+                    } else if (dy < -8 && !fabWatcherToggle.isShown()) {
+                        fabWatcherToggle.show();
+                    }
+                }
+            }
+        });
     }
 
     private void setupSearchFilter() {
@@ -240,6 +269,21 @@ public class VaultActivity extends AppCompatActivity
                 @Override
                 public void onTextChanged(CharSequence s, int start, int before, int count) {
                     currentSearchQuery = s != null ? s.toString() : "";
+                    if (btnClearSearch != null) {
+                        if (currentSearchQuery.length() > 0) {
+                            if (btnClearSearch.getVisibility() != View.VISIBLE) {
+                                btnClearSearch.setAlpha(0f);
+                                btnClearSearch.setVisibility(View.VISIBLE);
+                                btnClearSearch.animate().alpha(1f).setDuration(160).start();
+                            }
+                        } else {
+                            if (btnClearSearch.getVisibility() == View.VISIBLE) {
+                                btnClearSearch.animate().alpha(0f).setDuration(160).withEndAction(() -> {
+                                    btnClearSearch.setVisibility(View.GONE);
+                                }).start();
+                            }
+                        }
+                    }
                     applyFilters();
                 }
 
@@ -293,6 +337,7 @@ public class VaultActivity extends AppCompatActivity
         }
 
         vaultAdapter.updateData(filteredDocumentList);
+        rvVault.scheduleLayoutAnimation();
         updateEmptyState(filteredDocumentList.isEmpty());
         if (cleanQuery.isEmpty() && CategoryChipModel.CATEGORY_ALL.equalsIgnoreCase(selectedCategoryId)) {
             updateDocCount(masterDocumentList.size());
@@ -939,6 +984,18 @@ public class VaultActivity extends AppCompatActivity
                 .putBoolean(PREF_WATCHER_ON, isWatcherRunning)
                 .apply();
 
+        // Dynamic FAB rotation & spring bounce
+        if (fabWatcherToggle != null) {
+            fabWatcherToggle.animate()
+                    .rotationBy(360f)
+                    .scaleX(1.15f)
+                    .scaleY(1.15f)
+                    .setDuration(220)
+                    .withEndAction(() -> {
+                        fabWatcherToggle.animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start();
+                    }).start();
+        }
+
         updateWatcherUI();
         VaultWidgetProvider.updateAllWidgets(this, masterDocumentList.size(), isWatcherRunning);
     }
@@ -1105,17 +1162,52 @@ public class VaultActivity extends AppCompatActivity
 
     private void updateDocCount(int count) {
         tvDocCount.setText(getString(R.string.vault_doc_count, count));
+        if (tvDocCount != null) {
+            tvDocCount.animate().scaleX(1.08f).scaleY(1.08f).setDuration(120).withEndAction(() -> {
+                tvDocCount.animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start();
+            }).start();
+        }
     }
 
     private void updateWatcherUI() {
         if (isWatcherRunning) {
             tvWatcherStatus.setText(getString(R.string.widget_watcher_on));
             tvWatcherStatus.setTextColor(getResources().getColor(R.color.ghostSuccess, getTheme()));
+            tvWatcherStatus.setBackgroundResource(R.drawable.bg_watcher_active_pill);
             fabWatcherToggle.setImageResource(android.R.drawable.ic_media_pause);
+
+            if (watcherPulseAnimator == null) {
+                PropertyValuesHolder pvhX = PropertyValuesHolder.ofFloat("scaleX", 1.0f, 1.06f);
+                PropertyValuesHolder pvhY = PropertyValuesHolder.ofFloat("scaleY", 1.0f, 1.06f);
+                watcherPulseAnimator = ObjectAnimator.ofPropertyValuesHolder(tvWatcherStatus, pvhX, pvhY);
+                watcherPulseAnimator.setDuration(850);
+                watcherPulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
+                watcherPulseAnimator.setRepeatMode(ValueAnimator.REVERSE);
+                watcherPulseAnimator.start();
+            } else if (!watcherPulseAnimator.isRunning()) {
+                watcherPulseAnimator.start();
+            }
         } else {
             tvWatcherStatus.setText(getString(R.string.widget_watcher_off));
             tvWatcherStatus.setTextColor(getResources().getColor(R.color.ghostOnSurfaceMuted, getTheme()));
+            tvWatcherStatus.setBackgroundResource(R.drawable.bg_watcher_inactive_pill);
             fabWatcherToggle.setImageResource(android.R.drawable.ic_media_play);
+
+            if (watcherPulseAnimator != null) {
+                watcherPulseAnimator.cancel();
+                watcherPulseAnimator = null;
+            }
+            tvWatcherStatus.setScaleX(1.0f);
+            tvWatcherStatus.setScaleY(1.0f);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (watcherPulseAnimator != null) {
+            watcherPulseAnimator.cancel();
+            watcherPulseAnimator = null;
         }
     }
 

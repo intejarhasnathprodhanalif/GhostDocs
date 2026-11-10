@@ -1,11 +1,15 @@
 package com.ghostdocs.vault.activities;
 
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
+import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.OvershootInterpolator;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
@@ -68,6 +72,46 @@ public class LaunchActivity extends AppCompatActivity {
 
         // Initialise BiometricHelper with this Activity and our inline callback
         biometricHelper = new BiometricHelper(this, buildBiometricCallback());
+
+        // Dynamic launch entrance animations
+        View icon = findViewById(R.id.tv_ghost_icon);
+        View appName = findViewById(R.id.tv_app_name);
+        View tagline = findViewById(R.id.tv_tagline);
+        View badge = findViewById(R.id.tv_security_badge);
+
+        if (icon != null) {
+            icon.setAlpha(0f);
+            icon.setScaleX(0.6f);
+            icon.setScaleY(0.6f);
+            icon.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(550)
+                    .setInterpolator(new OvershootInterpolator(1.8f))
+                    .withEndAction(() -> {
+                        ObjectAnimator pulse = ObjectAnimator.ofPropertyValuesHolder(
+                                icon,
+                                PropertyValuesHolder.ofFloat("scaleX", 1f, 1.07f),
+                                PropertyValuesHolder.ofFloat("scaleY", 1f, 1.07f)
+                        );
+                        pulse.setDuration(800);
+                        pulse.setRepeatMode(ValueAnimator.REVERSE);
+                        pulse.setRepeatCount(ValueAnimator.INFINITE);
+                        pulse.start();
+                    }).start();
+        }
+        if (appName != null) {
+            appName.setAlpha(0f);
+            appName.setTranslationY(30f);
+            appName.animate().alpha(1f).translationY(0f).setDuration(450).setStartDelay(150).start();
+        }
+        if (tagline != null) {
+            tagline.setAlpha(0f);
+            tagline.setTranslationY(20f);
+            tagline.animate().alpha(1f).translationY(0f).setDuration(450).setStartDelay(250).start();
+        }
+        if (badge != null) {
+            badge.setAlpha(0f);
+            badge.setTranslationY(25f);
+            badge.animate().alpha(1f).translationY(0f).setDuration(500).setStartDelay(350).start();
+        }
 
         // Brief splash delay, then evaluate auth state
         new Handler(Looper.getMainLooper()).postDelayed(

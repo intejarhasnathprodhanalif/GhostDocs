@@ -3,8 +3,7 @@
     android:shape="rectangle">
     <solid android:color="@color/ghostSurfaceVariant" />
     <stroke
-        android:width="1dp"
+        android:width="1.2dp"
         android:color="@color/ghostDivider" />
     <corners android:radius="24dp" />
 </shape>
-

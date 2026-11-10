@@ -2,7 +2,9 @@ package com.ghostdocs.vault.adapter;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -172,6 +174,17 @@ public class VaultRecyclerAdapter
             tvDocIcon    = itemView.findViewById(R.id.tv_doc_icon);
             viewTypeBadge = itemView.findViewById(R.id.view_type_badge);
 
+            // Tactile touch spring scale feedback
+            itemView.setOnTouchListener((v, event) -> {
+                int action = event.getAction();
+                if (action == MotionEvent.ACTION_DOWN) {
+                    v.animate().scaleX(0.97f).scaleY(0.97f).setDuration(90).start();
+                } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                    v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start();
+                }
+                return false;
+            });
+
             // Wire click and long-click to adapter's listener
             itemView.setOnClickListener(v -> {
                 int pos = getAdapterPosition();
@@ -229,6 +242,17 @@ public class VaultRecyclerAdapter
             int badgeColor = resolveBadgeColor(doc.getDocType());
             viewTypeBadge.setBackgroundColor(badgeColor);
             tvDocType.setTextColor(badgeColor);
+
+            // Dynamic soft squircle container for icon with subtle glowing border
+            if (tvDocIcon != null) {
+                int iconBgColor = Color.argb(30, Color.red(badgeColor), Color.green(badgeColor), Color.blue(badgeColor));
+                GradientDrawable iconDrawable = new GradientDrawable();
+                iconDrawable.setShape(GradientDrawable.RECTANGLE);
+                iconDrawable.setCornerRadius(24f);
+                iconDrawable.setColor(iconBgColor);
+                iconDrawable.setStroke(2, badgeColor);
+                tvDocIcon.setBackground(iconDrawable);
+            }
         }
 
         /**

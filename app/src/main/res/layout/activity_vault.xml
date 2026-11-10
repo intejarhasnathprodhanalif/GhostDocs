@@ -206,7 +206,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
                 android:layout_toEndOf="@id/tv_search_icon"
+                android:layout_toStartOf="@+id/btn_clear_search"
                 android:background="@null"
                 android:hint="Search title, type, tags, or OCR content..."
                 android:imeOptions="actionSearch"
@@ -215,6 +217,22 @@
                 android:textColor="@color/ghostOnSurface"
                 android:textColorHint="@color/ghostOnSurfaceMuted"
                 android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btn_clear_search"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/bg_clear_btn"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="✕"
+                android:textColor="@color/ghostOnSurfaceMuted"
+                android:textSize="12sp"
+                android:visibility="gone"
+                tools:visibility="visible" />
         </RelativeLayout>
     </RelativeLayout>
 
@@ -246,6 +264,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
+        android:layoutAnimation="@anim/grid_layout_animation"
         android:paddingHorizontal="6dp"
         android:paddingTop="8dp"
         android:paddingBottom="84dp"

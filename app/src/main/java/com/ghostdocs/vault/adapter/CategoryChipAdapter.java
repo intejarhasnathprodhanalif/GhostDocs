@@ -87,6 +87,8 @@ public class CategoryChipAdapter extends RecyclerView.Adapter<CategoryChipAdapte
         }
 
         holder.layoutRoot.setOnClickListener(v -> {
+            v.animate().scaleX(1.08f).scaleY(1.08f).setDuration(90).withEndAction(() ->
+                    v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(90).start()).start();
             if (!chip.getId().equalsIgnoreCase(selectedCategoryId)) {
                 selectedCategoryId = chip.getId();
                 notifyDataSetChanged();
