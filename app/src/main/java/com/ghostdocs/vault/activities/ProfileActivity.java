@@ -130,9 +130,9 @@ public class ProfileActivity extends AppCompatActivity {
         int[] cardIds = new int[] {
                 R.id.card_profile_header,
                 R.id.card_edit_name,
-                R.id.card_password,
+                R.id.card_security,
                 R.id.card_vault_stats,
-                R.id.card_danger_zone
+                R.id.card_account_actions
         };
         long delay = 60;
         for (int id : cardIds) {
