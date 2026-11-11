@@ -1,17 +1,16 @@
 package com.ghostdocs.vault.tasks;
 
-import android.app.RecoverableSecurityException;
-import android.content.ContentResolver;
 import android.content.Context;
+import android.content.IntentSender;
 import android.graphics.Bitmap;
 import android.net.Uri;
-import android.os.Build;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.ghostdocs.vault.security.AesEncryptionHelper;
+import com.ghostdocs.vault.util.MediaDeleteHelper;
 
 import java.io.File;
 
@@ -39,19 +38,28 @@ public class EncryptTask extends BaseVaultTask<EncryptTask.EncryptResult> {
         private final String encryptedPath;
         @Nullable private final String originalEncryptedPath;
         private final boolean originalDeleted;
+        @Nullable private final IntentSender recoverableIntentSender;
         private final long fileSize;
 
         public EncryptResult(@NonNull File encryptedFile, boolean originalDeleted) {
-            this(encryptedFile, null, originalDeleted);
+            this(encryptedFile, null, originalDeleted, null);
         }
 
         public EncryptResult(@NonNull File encryptedFile,
                              @Nullable String originalEncryptedPath,
                              boolean originalDeleted) {
+            this(encryptedFile, originalEncryptedPath, originalDeleted, null);
+        }
+
+        public EncryptResult(@NonNull File encryptedFile,
+                             @Nullable String originalEncryptedPath,
+                             boolean originalDeleted,
+                             @Nullable IntentSender recoverableIntentSender) {
             this.encryptedFile = encryptedFile;
             this.encryptedPath = encryptedFile.getAbsolutePath();
             this.originalEncryptedPath = originalEncryptedPath;
             this.originalDeleted = originalDeleted;
+            this.recoverableIntentSender = recoverableIntentSender;
             this.fileSize = encryptedFile.length();
         }
 
@@ -59,6 +67,7 @@ public class EncryptTask extends BaseVaultTask<EncryptTask.EncryptResult> {
         @NonNull public String getEncryptedPath() { return encryptedPath; }
         @Nullable public String getOriginalEncryptedPath() { return originalEncryptedPath; }
         public boolean isOriginalDeleted() { return originalDeleted; }
+        @Nullable public IntentSender getRecoverableIntentSender() { return recoverableIntentSender; }
         public long getFileSize() { return fileSize; }
     }
 
@@ -111,42 +120,15 @@ public class EncryptTask extends BaseVaultTask<EncryptTask.EncryptResult> {
 
         // 3. Auto-erase original file from MediaStore (Scoped Storage compliant)
         boolean deleted = false;
+        IntentSender recoverableSender = null;
         if (autoDeleteOriginal && originalMediaUri != null) {
-            deleted = deleteOriginalMedia(originalMediaUri);
+            MediaDeleteHelper.DeleteAttemptResult deleteResult =
+                    MediaDeleteHelper.tryDirectDelete(context, originalMediaUri, null, 0);
+            deleted = deleteResult.isDeleted();
+            recoverableSender = deleteResult.getRecoverableIntentSender();
         }
 
-        return new EncryptResult(encryptedFile, origEncPath, deleted);
-    }
-
-    /**
-     * Attempts to delete the original image from Android's MediaStore.
-     * Complies with Scoped Storage restrictions across Android 10 to 14+.
-     */
-    private boolean deleteOriginalMedia(@NonNull Uri mediaUri) {
-        ContentResolver resolver = context.getContentResolver();
-        if (resolver == null) return false;
-
-        try {
-            int rowsDeleted = resolver.delete(mediaUri, null, null);
-            if (rowsDeleted > 0) {
-                Log.i(TAG, "Original MediaStore photo deleted successfully: " + mediaUri);
-                return true;
-            } else {
-                Log.w(TAG, "ContentResolver returned 0 rows deleted for URI: " + mediaUri);
-            }
-        } catch (SecurityException se) {
-            // Android 10+ (Q) throws RecoverableSecurityException if file was created by another app
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && se instanceof RecoverableSecurityException) {
-                Log.w(TAG, "RecoverableSecurityException on Scoped Storage deletion for: " + mediaUri
-                        + ". File is protected by another app's UID.");
-            } else {
-                Log.e(TAG, "SecurityException while deleting MediaStore original: " + mediaUri, se);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to delete original MediaStore image: " + mediaUri, e);
-        }
-
-        return false;
+        return new EncryptResult(encryptedFile, origEncPath, deleted, recoverableSender);
     }
 }
 

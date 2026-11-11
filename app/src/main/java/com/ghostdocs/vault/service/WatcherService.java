@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -28,6 +29,7 @@ import com.ghostdocs.vault.tasks.EncryptTask;
 import com.ghostdocs.vault.tasks.OcrTask;
 import com.ghostdocs.vault.tasks.PdfGeneratorTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
+import com.ghostdocs.vault.util.MediaDeleteHelper;
 import com.ghostdocs.vault.util.NotificationHelper;
 import com.ghostdocs.vault.util.PdfExportHelper;
 
@@ -393,6 +395,8 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             String encryptedPath;
             String originalEncryptedPath = null;
             String pdfPath = "";
+            boolean originalDeleted = !autoDeleteOriginal;
+            IntentSender recoverableSender = null;
 
             if (isPdf) {
                 byte[] pdfBytes = PdfExportHelper.readUriBytes(this, imageUri);
@@ -400,13 +404,11 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                 encryptedPath = encFile.getAbsolutePath();
                 pdfPath = PdfExportHelper.saveExportedPdf(this, pdfBytes, docId, title);
 
-                boolean originalDeleted = false;
                 if (autoDeleteOriginal) {
-                    try {
-                        originalDeleted = getContentResolver().delete(imageUri, null, null) > 0;
-                    } catch (Exception e) {
-                        Log.d(TAG, "Auto-delete skipped for PDF under Scoped Storage: " + e.getMessage());
-                    }
+                    MediaDeleteHelper.DeleteAttemptResult delResult =
+                            MediaDeleteHelper.tryDirectDelete(this, imageUri, displayName, 0);
+                    originalDeleted = delResult.isDeleted();
+                    recoverableSender = delResult.getRecoverableIntentSender();
                 }
                 Log.i(TAG, "PDF Encryption complete: " + encryptedPath + " | Original deleted: " + originalDeleted);
             } else {
@@ -415,13 +417,15 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                 EncryptTask.EncryptResult encryptResult = encryptTask.executeDirectly();
                 encryptedPath = encryptResult.getEncryptedPath();
                 originalEncryptedPath = encryptResult.getOriginalEncryptedPath();
+                originalDeleted = encryptResult.isOriginalDeleted();
+                recoverableSender = encryptResult.getRecoverableIntentSender();
 
                 if (originalBitmap != null && !originalBitmap.isRecycled()) {
                     originalBitmap.recycle();
                 }
 
                 Log.i(TAG, "Encryption complete: " + encryptedPath
-                        + " | Original deleted: " + encryptResult.isOriginalDeleted());
+                        + " | Original deleted: " + originalDeleted);
 
                 // Step 4: Generate Searchable PDF with transparent OCR text overlay
                 updateForegroundNotification("Generating searchable PDF...");
@@ -448,6 +452,8 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             }
 
             // Step 5: Push structured metadata to Cloud Firestore if user is authenticated
+            final boolean needDeleteConsent = autoDeleteOriginal && !originalDeleted;
+            final IntentSender consentSender = recoverableSender;
             FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
             if (currentUser != null) {
                 long timestamp = System.currentTimeMillis();
@@ -471,7 +477,13 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                         .collection("documents")
                         .document(docId)
                         .set(docModel)
-                        .addOnSuccessListener(unused -> Log.d(TAG, "Metadata pushed to Firestore: " + docId))
+                        .addOnSuccessListener(unused -> {
+                            Log.d(TAG, "Metadata pushed to Firestore: " + docId);
+                            if (needDeleteConsent) {
+                                NotificationHelper.showDeleteConsentNotification(
+                                        WatcherService.this, imageUri, consentSender, title);
+                            }
+                        })
                         .addOnFailureListener(e -> Log.e(TAG, "Failed pushing metadata to Firestore", e));
 
                 // Step 6: Trigger local notification

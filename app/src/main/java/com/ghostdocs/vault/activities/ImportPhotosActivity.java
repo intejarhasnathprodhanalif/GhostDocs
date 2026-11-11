@@ -7,6 +7,7 @@ import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -45,6 +46,7 @@ import com.ghostdocs.vault.tasks.EncryptTask;
 import com.ghostdocs.vault.tasks.OcrTask;
 import com.ghostdocs.vault.tasks.PdfGeneratorTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
+import com.ghostdocs.vault.util.MediaDeleteHelper;
 import com.ghostdocs.vault.util.NetworkHelper;
 import com.ghostdocs.vault.util.NotificationHelper;
 import com.ghostdocs.vault.util.PdfExportHelper;
@@ -119,14 +121,22 @@ public class ImportPhotosActivity extends AppCompatActivity
     private volatile String            securingInterruptionScenario = null;
     private ConnectivityManager.NetworkCallback securingNetworkCallback = null;
     private BroadcastReceiver          airplaneModeReceiver = null;
+    private final List<IntentSender>   pendingRecoverableQueue = new ArrayList<>();
 
-    // ── Android 11+ Batch Deletion Launcher ──────────────────────────────────
+    // ── Android 10–14+ Deletion Consent Launcher ─────────────────────────────
     private final ActivityResultLauncher<IntentSenderRequest> deleteIntentLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartIntentSenderForResult(),
                     result -> {
+                        if (!pendingRecoverableQueue.isEmpty()) {
+                            IntentSender next = pendingRecoverableQueue.remove(0);
+                            deleteIntentLauncher.launch(new IntentSenderRequest.Builder(next).build());
+                            return;
+                        }
                         if (result.getResultCode() == RESULT_OK) {
                             Toast.makeText(this, "Original photos deleted from gallery.", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(this, "Gallery deletion not permitted — original photo kept in gallery.", Toast.LENGTH_LONG).show();
                         }
                         scanGalleryScreenshots();
                     }
@@ -649,7 +659,10 @@ public class ImportPhotosActivity extends AppCompatActivity
                     mimeType = "application/pdf";
                 }
 
-                boolean isAlreadyVaulted = vaultedUriStrings.contains(uri.toString());
+                Uri canonicalUri = isPdfUri ? null
+                        : MediaDeleteHelper.resolveDeletableMediaUri(this, uri, displayName, size);
+                boolean isAlreadyVaulted = vaultedUriStrings.contains(uri.toString())
+                        || (canonicalUri != null && vaultedUriStrings.contains(canonicalUri.toString()));
                 GalleryPhotoItem item = new GalleryPhotoItem(
                         uri,
                         displayName,
@@ -835,6 +848,8 @@ public class ImportPhotosActivity extends AppCompatActivity
             int total = selectedItems.size();
             int successCount = 0;
             List<Uri> pendingDeleteUris = new ArrayList<>();
+            List<IntentSender> recoverableSenders = new ArrayList<>();
+            boolean hadUnresolvableDeleteFailure = false;
 
             for (int i = 0; i < total; i++) {
                 // Interruption Guard: Abort loop immediately if network dropped or Airplane Mode was enabled
@@ -990,17 +1005,33 @@ public class ImportPhotosActivity extends AppCompatActivity
 
                     // Firestore sync confirmed! Mark as vaulted
                     vaultedUriStrings.add(item.getUri().toString());
+                    Uri canonicalMediaUri = item.isPdf() ? null
+                            : MediaDeleteHelper.resolveDeletableMediaUri(this, item.getUri(), item.getDisplayName(), item.getSize());
+                    if (canonicalMediaUri != null) {
+                        vaultedUriStrings.add(canonicalMediaUri.toString());
+                    }
                     successCount++;
 
                     // Now safely handle original deletion (only after cloud commit succeeded)
                     if (deleteOriginals) {
-                        boolean deleted = false;
-                        try {
-                            int rows = getContentResolver().delete(item.getUri(), null, null);
-                            deleted = rows > 0;
-                        } catch (Exception ignored) {}
-                        if (!deleted) {
-                            pendingDeleteUris.add(item.getUri());
+                        MediaDeleteHelper.DeleteAttemptResult deleteResult =
+                                MediaDeleteHelper.tryDirectDelete(
+                                        this,
+                                        item.getUri(),
+                                        item.getDisplayName(),
+                                        item.getSize()
+                                );
+                        if (!deleteResult.isDeleted()) {
+                            Uri resolved = deleteResult.getCanonicalMediaUri();
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                                    && resolved != null
+                                    && MediaDeleteHelper.isCanonicalMediaStoreUri(resolved)) {
+                                pendingDeleteUris.add(resolved);
+                            } else if (deleteResult.getRecoverableIntentSender() != null) {
+                                recoverableSenders.add(deleteResult.getRecoverableIntentSender());
+                            } else {
+                                hadUnresolvableDeleteFailure = true;
+                            }
                         }
                     }
 
@@ -1069,35 +1100,33 @@ public class ImportPhotosActivity extends AppCompatActivity
                 }
 
                 // If Scoped Storage requires user consent to delete originals on Android 11+
-                if (deleteOriginals && !pendingDeleteUris.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                List<Uri> canonicalPending = MediaDeleteHelper.filterCanonicalMediaUris(pendingDeleteUris);
+                if (deleteOriginals && !canonicalPending.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     try {
-                        PendingIntent pi = MediaStore.createDeleteRequest(getContentResolver(), pendingDeleteUris);
+                        pendingRecoverableQueue.clear();
+                        pendingRecoverableQueue.addAll(recoverableSenders);
+                        PendingIntent pi = MediaStore.createDeleteRequest(getContentResolver(), canonicalPending);
                         IntentSenderRequest request = new IntentSenderRequest.Builder(pi.getIntentSender()).build();
                         deleteIntentLauncher.launch(request);
                         return;
-                    } catch (IllegalArgumentException iae) {
-                        // Document/SAF PDF URIs cannot always be included in MediaStore.createDeleteRequest;
-                        // retry with MediaStore media URIs so gallery photos are still cleaned up cleanly.
-                        List<Uri> mediaOnlyUris = new ArrayList<>();
-                        for (Uri u : pendingDeleteUris) {
-                            String s = u.toString();
-                            if (s.startsWith("content://media/") && !s.contains("/file/")) {
-                                mediaOnlyUris.add(u);
-                            }
-                        }
-                        if (!mediaOnlyUris.isEmpty()) {
-                            try {
-                                PendingIntent pi = MediaStore.createDeleteRequest(getContentResolver(), mediaOnlyUris);
-                                IntentSenderRequest request = new IntentSenderRequest.Builder(pi.getIntentSender()).build();
-                                deleteIntentLauncher.launch(request);
-                                return;
-                            } catch (Exception ex) {
-                                Log.w(TAG, "Failed to launch filtered Scoped Storage delete intent", ex);
-                            }
-                        }
                     } catch (Exception e) {
                         Log.w(TAG, "Failed to launch Scoped Storage batch delete intent", e);
                     }
+                }
+
+                // Android 10 (API 29) RecoverableSecurityException consent flow
+                if (deleteOriginals && !recoverableSenders.isEmpty()) {
+                    pendingRecoverableQueue.clear();
+                    pendingRecoverableQueue.addAll(recoverableSenders);
+                    IntentSender first = pendingRecoverableQueue.remove(0);
+                    deleteIntentLauncher.launch(new IntentSenderRequest.Builder(first).build());
+                    return;
+                }
+
+                if (deleteOriginals && hadUnresolvableDeleteFailure) {
+                    Toast.makeText(ImportPhotosActivity.this,
+                            "Secured to vault, but Android prevented removing the source copy from this provider.",
+                            Toast.LENGTH_LONG).show();
                 }
 
                 // Refresh scan

@@ -103,6 +103,28 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.btn_back).setOnClickListener(v -> finish());
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (settingsItems != null && settingsItems.size() > IDX_PERMISSIONS) {
+            settingsItems.get(IDX_PERMISSIONS).setValue(getPermissionsStatusLabel());
+            if (settingsAdapter != null) {
+                settingsAdapter.notifyDataSetChanged();
+            }
+        }
+    }
+
+    private String getPermissionsStatusLabel() {
+        if (!PermissionHelper.hasAllRequiredPermissions(this)) {
+            return "Required";
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                && !PermissionHelper.hasManageStoragePermission(this)) {
+            return "All-Files Needed for Auto-Delete";
+        }
+        return "Full Auto-Delete Ready";
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     // Setup
     // ════════════════════════════════════════════════════════════════════════
@@ -146,7 +168,7 @@ public class SettingsActivity extends AppCompatActivity {
                 "Import pre-existing screenshots"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 7
                 "Storage Permissions",
-                PermissionHelper.hasAllRequiredPermissions(this) ? "Granted" : "Required"));
+                getPermissionsStatusLabel()));
         settingsItems.add(new LogListAdapter.LogItem(                               // 8
                 "Restore All to Gallery (Unvault for Uninstall)",
                 "Restores all photos to Gallery"));
@@ -305,13 +327,24 @@ public class SettingsActivity extends AppCompatActivity {
                 Toast.LENGTH_SHORT).show();
     }
 
-    /** Opens the system permission settings for GhostDocs. */
+    /** Opens the system permission settings (including All-Files Access for gallery auto-delete). */
     private void openPermissions() {
-        if (PermissionHelper.hasAllRequiredPermissions(this)) {
-            Toast.makeText(this, "All permissions granted", Toast.LENGTH_SHORT).show();
-        } else {
+        if (!PermissionHelper.hasAllRequiredPermissions(this)) {
             PermissionHelper.openAppSettings(this);
+            return;
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                && !PermissionHelper.hasManageStoragePermission(this)) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Enable Automatic Gallery Cleanup")
+                    .setMessage("Android restricts apps from deleting photos created by your Camera or Gallery without explicit permission.\n\n"
+                            + "Grant 'All Files Access' to let GhostDocs automatically erase secured photos from your gallery without extra confirmation dialogs.")
+                    .setPositiveButton("Open Settings", (d, w) -> PermissionHelper.openManageStorageSettings(this))
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            return;
+        }
+        Toast.makeText(this, "All storage & auto-delete permissions granted.", Toast.LENGTH_SHORT).show();
     }
 
     /**

@@ -133,6 +133,11 @@
             android:name=".activities.ImportPhotosActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".activities.DeleteConsentActivity"
+            android:exported="false"
+            android:excludeFromRecents="true" />
+
         <!--
             ProfileActivity: User profile, display name, password updates,
             and vault security credentials editor.

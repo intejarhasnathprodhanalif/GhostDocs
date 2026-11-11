@@ -4,14 +4,17 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentSender;
 import android.net.Uri;
 import android.os.Build;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
 import com.ghostdocs.vault.R;
+import com.ghostdocs.vault.activities.DeleteConsentActivity;
 import com.ghostdocs.vault.activities.SecurePromptActivity;
 import com.ghostdocs.vault.activities.VaultActivity;
 import com.ghostdocs.vault.service.WatcherService;
@@ -214,6 +217,54 @@ public final class NotificationHelper {
         } catch (SecurityException ignored) {
             // Handled if POST_NOTIFICATIONS is revoked
         }
+    }
+
+    /**
+     * Prompts the user to grant one-tap OS deletion consent when Android Scoped Storage
+     * prevents WatcherService from deleting a gallery original silently in the background.
+     */
+    public static void showDeleteConsentNotification(@NonNull Context context,
+                                                     @NonNull Uri targetUri,
+                                                     @Nullable IntentSender recoverableSender,
+                                                     @NonNull String docTitle) {
+        if (!PermissionHelper.hasNotificationPermission(context)) {
+            return;
+        }
+
+        int notificationId = DOC_ALERT_NOTIFICATION_ID_BASE + 500 + (alertCounter++ % 100);
+        Intent consentIntent = new Intent(context, DeleteConsentActivity.class);
+        consentIntent.putExtra(DeleteConsentActivity.EXTRA_TARGET_URI, targetUri.toString());
+        if (recoverableSender != null) {
+            consentIntent.putExtra(DeleteConsentActivity.EXTRA_RECOVERABLE_SENDER, recoverableSender);
+        }
+        consentIntent.putExtra(DeleteConsentActivity.EXTRA_NOTIFICATION_ID, notificationId);
+        consentIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                context,
+                notificationId,
+                consentIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        String message = "\"" + docTitle + "\" is secured. Tap to delete the original copy from your gallery.";
+        Notification notification = new NotificationCompat.Builder(
+                context,
+                context.getString(R.string.doc_channel_id))
+                .setContentTitle("Remove Original from Gallery?")
+                .setContentText(message)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(message))
+                .setSmallIcon(android.R.drawable.ic_menu_delete)
+                .setContentIntent(pendingIntent)
+                .addAction(android.R.drawable.ic_menu_delete, "Delete Original", pendingIntent)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .build();
+
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, notification);
+        } catch (SecurityException ignored) {}
     }
 }
 
