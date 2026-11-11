@@ -2,11 +2,12 @@ package com.ghostdocs.vault.tasks;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.ImageDecoder;
 import android.net.Uri;
 import android.os.Build;
-import android.provider.MediaStore;
 import android.util.Log;
+import android.util.Size;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -14,6 +15,7 @@ import androidx.annotation.Nullable;
 import com.ghostdocs.vault.util.OpenCvCropper;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Locale;
 
 /**
@@ -32,6 +34,7 @@ import java.util.Locale;
 public class CropTask extends BaseVaultTask<Bitmap> {
 
     private static final String TAG = "GhostDocs.CropTask";
+    private static final int MAX_CAPTURE_DIMENSION = 2400;
 
     /**
      * Encapsulates both the cropped/flattened bitmap and the uncropped original bitmap
@@ -145,7 +148,8 @@ public class CropTask extends BaseVaultTask<Bitmap> {
     }
 
     /**
-     * Safely loads a mutable software Bitmap from a MediaStore content URI.
+     * Safely loads a mutable software Bitmap from a MediaStore content URI,
+     * capping huge 12MP-64MP camera captures to 2400px max dimension to prevent OOM during OpenCV warping.
      */
     private Bitmap loadBitmapFromUri(Uri uri) throws IOException {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -153,9 +157,36 @@ public class CropTask extends BaseVaultTask<Bitmap> {
             return ImageDecoder.decodeBitmap(source, (decoder, info, src) -> {
                 decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
                 decoder.setMutableRequired(true);
+
+                Size size = info.getSize();
+                int w = size.getWidth();
+                int h = size.getHeight();
+                int maxSide = Math.max(w, h);
+                if (maxSide > MAX_CAPTURE_DIMENSION && w > 0 && h > 0) {
+                    float ratio = (float) MAX_CAPTURE_DIMENSION / maxSide;
+                    decoder.setTargetSize(
+                            Math.max(1, Math.round(w * ratio)),
+                            Math.max(1, Math.round(h * ratio))
+                    );
+                }
             });
         } else {
-            return MediaStore.Images.Media.getBitmap(context.getContentResolver(), uri);
+            BitmapFactory.Options boundsOpts = new BitmapFactory.Options();
+            boundsOpts.inJustDecodeBounds = true;
+            try (InputStream is = context.getContentResolver().openInputStream(uri)) {
+                BitmapFactory.decodeStream(is, null, boundsOpts);
+            }
+            int sampleSize = 1;
+            int maxSide = Math.max(boundsOpts.outWidth, boundsOpts.outHeight);
+            while (maxSide / sampleSize > MAX_CAPTURE_DIMENSION) {
+                sampleSize *= 2;
+            }
+            BitmapFactory.Options decodeOpts = new BitmapFactory.Options();
+            decodeOpts.inSampleSize = sampleSize;
+            decodeOpts.inMutable = true;
+            try (InputStream is = context.getContentResolver().openInputStream(uri)) {
+                return BitmapFactory.decodeStream(is, null, decodeOpts);
+            }
         }
     }
 }
