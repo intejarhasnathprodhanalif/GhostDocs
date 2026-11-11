@@ -6,6 +6,7 @@ import android.content.Context;
 import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
@@ -14,6 +15,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -57,6 +59,8 @@ public class MediaContentObserver extends ContentObserver {
     private final OnImageCapturedListener listener;
     private final Handler debounceHandler;
     private final AtomicLong lastProcessedImageId = new AtomicLong(-1);
+    private final AtomicLong lastProcessedPdfId = new AtomicLong(-1);
+    private final long observerStartEpochSec;
     private Runnable pendingQueryRunnable;
 
     /**
@@ -64,7 +68,7 @@ public class MediaContentObserver extends ContentObserver {
      *
      * @param handler  Handler to receive onChange callbacks.
      * @param context  Context used for ContentResolver queries.
-     * @param listener Callback interface for image events.
+     * @param listener Callback interface for image & PDF events.
      */
     public MediaContentObserver(Handler handler, @NonNull Context context,
                                 @NonNull OnImageCapturedListener listener) {
@@ -72,6 +76,7 @@ public class MediaContentObserver extends ContentObserver {
         this.context = context.getApplicationContext();
         this.listener = listener;
         this.debounceHandler = new Handler(Looper.getMainLooper());
+        this.observerStartEpochSec = System.currentTimeMillis() / 1000L;
     }
 
     @Override
@@ -84,7 +89,10 @@ public class MediaContentObserver extends ContentObserver {
             debounceHandler.removeCallbacks(pendingQueryRunnable);
         }
 
-        pendingQueryRunnable = this::queryLatestImage;
+        pendingQueryRunnable = () -> {
+            queryLatestImage();
+            queryLatestPdf();
+        };
         debounceHandler.postDelayed(pendingQueryRunnable, DEBOUNCE_DELAY_MS);
     }
 
@@ -147,6 +155,83 @@ public class MediaContentObserver extends ContentObserver {
             Log.e(TAG, "Permission missing while reading MediaStore in ContentObserver", se);
         } catch (Exception e) {
             Log.e(TAG, "Failed to query MediaStore for latest image", e);
+        }
+    }
+
+    /**
+     * Queries MediaStore.Files for any newly added PDF saved after Watcher started,
+     * skipping pending downloads and GhostDocs's own Downloads/GhostDocs exports.
+     */
+    private void queryLatestPdf() {
+        final ContentResolver resolver = context.getContentResolver();
+        if (resolver == null) return;
+
+        Uri filesUri = MediaStore.Files.getContentUri("external");
+        String[] projection;
+        StringBuilder selection = new StringBuilder();
+        selection.append("(")
+                .append(MediaStore.Files.FileColumns.MIME_TYPE).append(" = 'application/pdf' OR ")
+                .append(MediaStore.Files.FileColumns.DISPLAY_NAME).append(" LIKE '%.pdf') AND ")
+                .append(MediaStore.Files.FileColumns.SIZE).append(" > 0 AND ")
+                .append(MediaStore.Files.FileColumns.DATE_ADDED).append(" >= ").append(observerStartEpochSec - 2);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            projection = new String[]{
+                    MediaStore.Files.FileColumns._ID,
+                    MediaStore.Files.FileColumns.DISPLAY_NAME,
+                    MediaStore.Files.FileColumns.MIME_TYPE,
+                    MediaStore.Files.FileColumns.DATE_ADDED,
+                    MediaStore.Files.FileColumns.RELATIVE_PATH
+            };
+            selection.append(" AND ").append(MediaStore.Files.FileColumns.IS_PENDING).append(" = 0");
+        } else {
+            projection = new String[]{
+                    MediaStore.Files.FileColumns._ID,
+                    MediaStore.Files.FileColumns.DISPLAY_NAME,
+                    MediaStore.Files.FileColumns.MIME_TYPE,
+                    MediaStore.Files.FileColumns.DATE_ADDED
+            };
+        }
+
+        String sortOrder = MediaStore.Files.FileColumns.DATE_ADDED + " DESC";
+        try (Cursor cursor = resolver.query(filesUri, projection, selection.toString(), null, sortOrder)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int idCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID);
+                int nameCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME);
+                int mimeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE);
+                int dateCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_ADDED);
+
+                long pdfId = cursor.getLong(idCol);
+                if (pdfId == lastProcessedPdfId.get()) {
+                    return;
+                }
+
+                String displayName = cursor.getString(nameCol);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    int relIdx = cursor.getColumnIndex(MediaStore.Files.FileColumns.RELATIVE_PATH);
+                    String relPath = relIdx != -1 ? cursor.getString(relIdx) : null;
+                    if (relPath != null && relPath.toLowerCase(Locale.ROOT).contains("ghostdocs")) {
+                        return;
+                    }
+                }
+
+                lastProcessedPdfId.set(pdfId);
+                Uri contentUri = ContentUris.withAppendedId(filesUri, pdfId);
+                String mimeType = cursor.getString(mimeCol);
+                long dateAdded = cursor.getLong(dateCol);
+
+                Log.i(TAG, "New PDF detected: " + displayName + " (ID: " + pdfId + ", URI: " + contentUri + ")");
+                listener.onImageCaptured(
+                        contentUri,
+                        displayName != null ? displayName : "Document_" + pdfId + ".pdf",
+                        mimeType != null ? mimeType : "application/pdf",
+                        dateAdded
+                );
+            }
+        } catch (SecurityException se) {
+            Log.d(TAG, "MediaStore.Files PDF observer query skipped due to permissions");
+        } catch (Exception e) {
+            Log.d(TAG, "Failed to query MediaStore.Files for latest PDF: " + e.getMessage());
         }
     }
 }

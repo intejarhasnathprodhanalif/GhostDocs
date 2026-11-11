@@ -486,7 +486,8 @@ public class RegexClassifierEngine {
             return true;
         }
         String clean = name.trim().toLowerCase(Locale.ROOT);
-        return clean.matches("^(screenshot|img|pxl|pic|photo|image|doc|scan|wp_|whatsapp|camera|temp|frame|capture).*");
+        return clean.matches("^(screenshot|img|pxl|pic|photo|image|doc|scan|wp_|whatsapp|camera|temp|frame|capture|download|file|untitled|imported_|pdf_|camscanner|adobe[ _-]?scan|new[ _-]?doc).*")
+                || clean.matches("^[0-9_-]{6,}(\\.[a-z0-9]+)?$");
     }
 
     private static String cleanFileName(String name) {

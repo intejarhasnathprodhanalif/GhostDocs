@@ -22,12 +22,14 @@ import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.classifier.RegexClassifierEngine;
 import com.ghostdocs.vault.model.DocumentModel;
 import com.ghostdocs.vault.observer.MediaContentObserver;
+import com.ghostdocs.vault.security.AesEncryptionHelper;
 import com.ghostdocs.vault.tasks.CropTask;
 import com.ghostdocs.vault.tasks.EncryptTask;
 import com.ghostdocs.vault.tasks.OcrTask;
 import com.ghostdocs.vault.tasks.PdfGeneratorTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
 import com.ghostdocs.vault.util.NotificationHelper;
+import com.ghostdocs.vault.util.PdfExportHelper;
 
 import java.io.File;
 import com.google.firebase.auth.FirebaseAuth;
@@ -37,6 +39,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ServerValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -195,10 +198,14 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     true,
                     mediaObserver);
+            getContentResolver().registerContentObserver(
+                    MediaStore.Files.getContentUri("external"),
+                    true,
+                    mediaObserver);
 
             isObserving = true;
             Log.i(TAG,
-                    "MediaContentObserver registered successfully on " + MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                    "MediaContentObserver registered successfully on Images and Files MediaStore");
         } catch (Exception e) {
             Log.e(TAG, "Failed to register MediaContentObserver", e);
         }
@@ -257,12 +264,22 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
             boolean excludeStudyNotes = prefs.getBoolean("exclude_study_notes", true);
 
-            // Step 1: Smart Crop & Flatten
-            CropTask cropTask = new CropTask(this, imageUri, displayName, null);
-            Bitmap processedBitmap = cropTask.executeDirectly();
+            boolean isPdf = PdfExportHelper.isPdf(mimeType, displayName);
+            OcrTask ocrTask;
+            Bitmap processedBitmap = null;
 
-            // Step 2: ML Kit OCR
-            OcrTask ocrTask = new OcrTask(this, processedBitmap, displayName, null);
+            if (isPdf) {
+                // Multi-page PDF OCR without bitmap cropping
+                ocrTask = new OcrTask(this, imageUri, displayName, true, null);
+            } else {
+                // Step 1: Smart Crop & Flatten
+                CropTask cropTask = new CropTask(this, imageUri, displayName, null);
+                processedBitmap = cropTask.executeDirectly();
+
+                // Step 2: ML Kit OCR
+                ocrTask = new OcrTask(this, processedBitmap, displayName, null);
+            }
+
             OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
 
             RegexClassifierEngine.ClassificationResult classification = ocrResult.getClassification();
@@ -316,22 +333,36 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
         try {
             Log.d(TAG, "Background processing started for: " + displayName);
 
-            // Step 1: Smart Crop & Flatten via OpenCV (retaining uncropped original if cropped)
-            updateForegroundNotification("Optimizing document perspective...");
-            CropTask cropTask = new CropTask(this, imageUri, displayName, null);
-            CropTask.CropResult cropResult = cropTask.executeWithOriginal();
-            Bitmap processedBitmap = cropResult.getProcessedBitmap();
-            Bitmap originalBitmap = cropResult.getOriginalBitmap();
+            boolean isPdf = PdfExportHelper.isPdf(mimeType, displayName);
+            Bitmap processedBitmap = null;
+            Bitmap originalBitmap = null;
+            OcrTask.OcrResult ocrResult;
 
-            // Step 2: Execute on-device ML Kit OCR Task on de-skewed bitmap
-            updateForegroundNotification("Reading document text...");
-            OcrTask ocrTask = new OcrTask(this, processedBitmap, displayName, null);
-            OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
+            if (isPdf) {
+                updateForegroundNotification("Reading multi-page PDF text...");
+                OcrTask ocrTask = new OcrTask(this, imageUri, displayName, true, null);
+                ocrResult = ocrTask.executeDirectly();
+            } else {
+                // Step 1: Smart Crop & Flatten via OpenCV (retaining uncropped original if cropped)
+                updateForegroundNotification("Optimizing document perspective...");
+                CropTask cropTask = new CropTask(this, imageUri, displayName, null);
+                CropTask.CropResult cropResult = cropTask.executeWithOriginal();
+                processedBitmap = cropResult.getProcessedBitmap();
+                originalBitmap = cropResult.getOriginalBitmap();
+
+                // Step 2: Execute on-device ML Kit OCR Task on de-skewed bitmap
+                updateForegroundNotification("Reading document text...");
+                OcrTask ocrTask = new OcrTask(this, processedBitmap, displayName, null);
+                ocrResult = ocrTask.executeDirectly();
+            }
 
             RegexClassifierEngine.ClassificationResult classification = ocrResult.getClassification();
             String docType = classification.getDocType();
             String title = classification.getTitle();
-            List<String> tags = classification.getTags();
+            List<String> tags = new ArrayList<>(classification.getTags());
+            if (isPdf && !tags.contains("PDF")) {
+                tags.add("PDF");
+            }
             String fullOcrText = ocrResult.getFullText();
 
             Log.i(TAG, "Pipeline OCR complete -> Category: " + docType + ", Title: " + title);
@@ -344,7 +375,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             if (excludeStudyNotes && (DocumentModel.TYPE_STUDY_NOTE.equals(docType)
                     || RegexClassifierEngine.isAcademicOrStudyNote(fullOcrText))) {
                 Log.i(TAG, "Excluding class lecture / study note from vault security: " + displayName);
-                updateForegroundNotification("Class notes detected — preserved safely in Gallery.");
+                updateForegroundNotification("Class notes detected — preserved safely.");
                 if (processedBitmap != null && !processedBitmap.isRecycled()) {
                     processedBitmap.recycle();
                 }
@@ -354,39 +385,66 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                 return;
             }
 
-            // Step 3: Hardware AES-256-GCM Encryption & Scoped Storage Deletion
+            // Step 3: Hardware AES-256-GCM Encryption & Export Generation
             updateForegroundNotification("Encrypting and securing document...");
             String docId = UUID.randomUUID().toString();
             boolean autoDeleteOriginal = prefs.getBoolean("auto_delete_original", true);
 
-            EncryptTask encryptTask = new EncryptTask(this, processedBitmap, originalBitmap, imageUri, docId, autoDeleteOriginal, null);
-            EncryptTask.EncryptResult encryptResult = encryptTask.executeDirectly();
-
-            if (originalBitmap != null && !originalBitmap.isRecycled()) {
-                originalBitmap.recycle();
-            }
-
-            Log.i(TAG, "Encryption complete: " + encryptResult.getEncryptedPath()
-                    + " | Original deleted: " + encryptResult.isOriginalDeleted());
-
-            // Step 4: Generate Searchable PDF with transparent OCR text overlay
-            updateForegroundNotification("Generating searchable PDF...");
+            String encryptedPath;
+            String originalEncryptedPath = null;
             String pdfPath = "";
-            try {
-                PdfGeneratorTask pdfTask = new PdfGeneratorTask(
-                        this,
-                        processedBitmap,
-                        ocrResult.getBoundingBoxes(),
-                        docId,
-                        title,
-                        null);
-                File pdfFile = pdfTask.executeDirectly();
-                if (pdfFile != null && pdfFile.exists()) {
-                    pdfPath = pdfFile.getAbsolutePath();
-                    Log.i(TAG, "Searchable PDF created in pipeline: " + pdfPath);
+
+            if (isPdf) {
+                byte[] pdfBytes = PdfExportHelper.readUriBytes(this, imageUri);
+                File encFile = AesEncryptionHelper.getInstance().encryptBytesToFile(this, pdfBytes, docId);
+                encryptedPath = encFile.getAbsolutePath();
+                pdfPath = PdfExportHelper.saveExportedPdf(this, pdfBytes, docId, title);
+
+                boolean originalDeleted = false;
+                if (autoDeleteOriginal) {
+                    try {
+                        originalDeleted = getContentResolver().delete(imageUri, null, null) > 0;
+                    } catch (Exception e) {
+                        Log.d(TAG, "Auto-delete skipped for PDF under Scoped Storage: " + e.getMessage());
+                    }
                 }
-            } catch (Exception pdfEx) {
-                Log.w(TAG, "Could not generate PDF during auto-pipeline", pdfEx);
+                Log.i(TAG, "PDF Encryption complete: " + encryptedPath + " | Original deleted: " + originalDeleted);
+            } else {
+                EncryptTask encryptTask = new EncryptTask(this, processedBitmap, originalBitmap, imageUri, docId,
+                        autoDeleteOriginal, null);
+                EncryptTask.EncryptResult encryptResult = encryptTask.executeDirectly();
+                encryptedPath = encryptResult.getEncryptedPath();
+                originalEncryptedPath = encryptResult.getOriginalEncryptedPath();
+
+                if (originalBitmap != null && !originalBitmap.isRecycled()) {
+                    originalBitmap.recycle();
+                }
+
+                Log.i(TAG, "Encryption complete: " + encryptedPath
+                        + " | Original deleted: " + encryptResult.isOriginalDeleted());
+
+                // Step 4: Generate Searchable PDF with transparent OCR text overlay
+                updateForegroundNotification("Generating searchable PDF...");
+                try {
+                    PdfGeneratorTask pdfTask = new PdfGeneratorTask(
+                            this,
+                            processedBitmap,
+                            ocrResult.getBoundingBoxes(),
+                            docId,
+                            title,
+                            null);
+                    File pdfFile = pdfTask.executeDirectly();
+                    if (pdfFile != null && pdfFile.exists()) {
+                        pdfPath = pdfFile.getAbsolutePath();
+                        Log.i(TAG, "Searchable PDF created in pipeline: " + pdfPath);
+                    }
+                } catch (Exception pdfEx) {
+                    Log.w(TAG, "Could not generate PDF during auto-pipeline", pdfEx);
+                }
+
+                if (processedBitmap != null && !processedBitmap.isRecycled()) {
+                    processedBitmap.recycle();
+                }
             }
 
             // Step 5: Push structured metadata to Cloud Firestore if user is authenticated
@@ -398,14 +456,14 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                         docId,
                         title,
                         fullOcrText,
-                        encryptResult.getEncryptedPath(), // Verified AES encrypted path on device
+                        encryptedPath, // Verified AES encrypted path on device
                         imageUri.toString(), // Reference for thumbnail
-                        pdfPath, // Verified searchable PDF path
+                        pdfPath, // Verified searchable/native PDF path
                         timestamp,
                         tags,
                         docType,
                         currentUser.getUid());
-                docModel.setOriginalEncryptedPath(encryptResult.getOriginalEncryptedPath());
+                docModel.setOriginalEncryptedPath(originalEncryptedPath);
 
                 FirebaseFirestore.getInstance()
                         .collection("users")

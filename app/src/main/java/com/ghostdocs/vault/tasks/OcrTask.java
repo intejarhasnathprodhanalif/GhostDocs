@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
 
 import com.ghostdocs.vault.classifier.RegexClassifierEngine;
 import com.ghostdocs.vault.ocr.OcrBoundingBox;
+import com.ghostdocs.vault.util.PdfExportHelper;
 import com.google.android.gms.tasks.Tasks;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.Text;
@@ -66,19 +67,34 @@ public class OcrTask extends BaseVaultTask<OcrTask.OcrResult> {
         public int getImageHeight() { return imageHeight; }
     }
 
+    private static final int MAX_PDF_OCR_PAGES = 4;
+    private static final int PDF_OCR_MAX_DIMENSION = 1200;
+
     private final Uri imageUri;
     private final Bitmap sourceBitmap;
     private final String fallbackTitle;
+    private final boolean isPdf;
     private final RegexClassifierEngine classifierEngine;
 
     public OcrTask(@NonNull Context context,
                    @NonNull Uri imageUri,
                    @NonNull String fallbackTitle,
                    @Nullable TaskCallback<OcrResult> callback) {
+        this(context, imageUri, fallbackTitle,
+                PdfExportHelper.isPdf(context.getContentResolver().getType(imageUri), fallbackTitle),
+                callback);
+    }
+
+    public OcrTask(@NonNull Context context,
+                   @NonNull Uri documentUri,
+                   @NonNull String fallbackTitle,
+                   boolean isPdf,
+                   @Nullable TaskCallback<OcrResult> callback) {
         super(context, callback);
-        this.imageUri = imageUri;
+        this.imageUri = documentUri;
         this.sourceBitmap = null;
         this.fallbackTitle = fallbackTitle;
+        this.isPdf = isPdf;
         this.classifierEngine = new RegexClassifierEngine();
     }
 
@@ -90,50 +106,76 @@ public class OcrTask extends BaseVaultTask<OcrTask.OcrResult> {
         this.imageUri = null;
         this.sourceBitmap = bitmap;
         this.fallbackTitle = fallbackTitle;
+        this.isPdf = false;
         this.classifierEngine = new RegexClassifierEngine();
     }
 
     @Override
     public OcrResult doInBackground() throws Exception {
-        Log.d(TAG, "Starting on-device ML Kit OCR for URI: " + imageUri);
+        Log.d(TAG, "Starting on-device ML Kit OCR (isPdf=" + isPdf + ") for URI: " + imageUri);
 
-        // 1. Build ML Kit InputImage from Bitmap or file path
-        InputImage inputImage;
-        if (sourceBitmap != null) {
-            inputImage = InputImage.fromBitmap(sourceBitmap, 0);
-        } else if (imageUri != null) {
-            inputImage = InputImage.fromFilePath(context, imageUri);
-        } else {
-            throw new IllegalArgumentException("Neither sourceBitmap nor imageUri provided for OcrTask.");
-        }
-        int width = inputImage.getWidth();
-        int height = inputImage.getHeight();
-
-        // 2. Initialize ML Kit Text Recognizer
         TextRecognizer recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+        List<OcrBoundingBox> boundingBoxes = new ArrayList<>();
+        int width = 0;
+        int height = 0;
+        String rawText;
 
-        Text visionText;
         try {
-            // Await synchronously on worker thread (safe: we are inside VaultExecutor)
-            visionText = Tasks.await(recognizer.process(inputImage));
+            if (isPdf && imageUri != null) {
+                StringBuilder combinedText = new StringBuilder();
+                final int[] firstDims = new int[2];
+
+                PdfExportHelper.processPdfPages(context, imageUri, MAX_PDF_OCR_PAGES, PDF_OCR_MAX_DIMENSION,
+                        (pageIndex, pageBitmap) -> {
+                            if (pageIndex == 0) {
+                                firstDims[0] = pageBitmap.getWidth();
+                                firstDims[1] = pageBitmap.getHeight();
+                            }
+                            Text visionText = Tasks.await(
+                                    recognizer.process(InputImage.fromBitmap(pageBitmap, 0)));
+                            if (visionText != null) {
+                                String pageText = visionText.getText();
+                                if (pageText != null && !pageText.trim().isEmpty()) {
+                                    if (combinedText.length() > 0) {
+                                        combinedText.append("\n\n");
+                                    }
+                                    combinedText.append(pageText.trim());
+                                }
+                                if (pageIndex == 0) {
+                                    collectBoundingBoxes(visionText, boundingBoxes);
+                                }
+                            }
+                        });
+
+                width = firstDims[0];
+                height = firstDims[1];
+                rawText = combinedText.toString();
+            } else {
+                // Single bitmap or image URI
+                InputImage inputImage;
+                if (sourceBitmap != null) {
+                    inputImage = InputImage.fromBitmap(sourceBitmap, 0);
+                } else if (imageUri != null) {
+                    inputImage = InputImage.fromFilePath(context, imageUri);
+                } else {
+                    throw new IllegalArgumentException("Neither sourceBitmap nor imageUri provided for OcrTask.");
+                }
+                width = inputImage.getWidth();
+                height = inputImage.getHeight();
+
+                Text visionText = Tasks.await(recognizer.process(inputImage));
+                rawText = visionText != null ? visionText.getText() : "";
+                if (visionText != null) {
+                    collectBoundingBoxes(visionText, boundingBoxes);
+                }
+            }
         } finally {
             recognizer.close(); // Prevent resource leaks
         }
 
-        String rawText = visionText != null ? visionText.getText() : "";
         Log.i(TAG, "OCR recognition completed. Extracted length: " + rawText.length() + " characters.");
 
-        // 3. Extract bounding boxes for all text blocks & lines (crucial for Step 8 PDF overlay)
-        List<OcrBoundingBox> boundingBoxes = new ArrayList<>();
-        if (visionText != null) {
-            for (Text.TextBlock block : visionText.getTextBlocks()) {
-                for (Text.Line line : block.getLines()) {
-                    boundingBoxes.add(new OcrBoundingBox(line.getText(), line.getBoundingBox()));
-                }
-            }
-        }
-
-        // 4. Run Custom Regex Classification Engine & format org.json.JSONObject
+        // Run Custom Regex Classification Engine across full (or multi-page) text
         RegexClassifierEngine.ClassificationResult classification =
                 classifierEngine.classify(rawText, fallbackTitle);
 
@@ -142,6 +184,14 @@ public class OcrTask extends BaseVaultTask<OcrTask.OcrResult> {
                 + " | Tags: " + classification.getTags());
 
         return new OcrResult(rawText, classification, boundingBoxes, width, height);
+    }
+
+    private static void collectBoundingBoxes(@NonNull Text visionText, @NonNull List<OcrBoundingBox> out) {
+        for (Text.TextBlock block : visionText.getTextBlocks()) {
+            for (Text.Line line : block.getLines()) {
+                out.add(new OcrBoundingBox(line.getText(), line.getBoundingBox()));
+            }
+        }
     }
 }
 

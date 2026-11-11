@@ -5,6 +5,8 @@ import android.net.Uri;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.ghostdocs.vault.util.PdfExportHelper;
+
 import java.util.Objects;
 
 /**
@@ -88,8 +90,7 @@ public class GalleryPhotoItem {
     }
 
     public boolean isPdf() {
-        return (mimeType != null && mimeType.equalsIgnoreCase("application/pdf"))
-                || (displayName != null && displayName.toLowerCase().endsWith(".pdf"));
+        return PdfExportHelper.isPdf(mimeType, displayName);
     }
 
     public boolean isSuggested() {

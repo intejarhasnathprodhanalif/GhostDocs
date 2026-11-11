@@ -272,7 +272,7 @@
             android:layout_centerVertical="true"
             android:enabled="false"
             android:paddingHorizontal="20dp"
-            android:text="Secure Selected Photos (0)"
+            android:text="Secure Selected (0)"
             android:textSize="13sp" />
 
     </RelativeLayout>
@@ -369,3 +369,4 @@
     </RelativeLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+

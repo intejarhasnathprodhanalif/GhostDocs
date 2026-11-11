@@ -19,17 +19,21 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.FileProvider;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Locale;
 
 /**
  * PdfExportHelper — Secure FileProvider Intent Dispatcher & Native PDF Processing Engine
  *
  * <p>Encapsulates Android {@link FileProvider} URI translation, native {@link PdfRenderer}
- * page-1 bitmap generation (for ML Kit OCR & thumbnails), and Scoped Storage downloads export.
+ * multi-page bitmap generation (for ML Kit OCR & thumbnails), export persistence, and
+ * Scoped Storage downloads export.
  */
 public final class PdfExportHelper {
 
@@ -103,6 +107,21 @@ public final class PdfExportHelper {
     }
 
     /**
+     * Streaming callback invoked for each rendered PDF page bitmap.
+     */
+    public interface PdfPageProcessor {
+        void onPage(int pageIndex, @NonNull Bitmap pageBitmap) throws Exception;
+    }
+
+    /**
+     * Returns true if the supplied MIME type or display name identifies a PDF file.
+     */
+    public static boolean isPdf(@Nullable String mimeType, @Nullable String displayName) {
+        return (mimeType != null && mimeType.equalsIgnoreCase("application/pdf"))
+                || (displayName != null && displayName.toLowerCase(Locale.ROOT).endsWith(".pdf"));
+    }
+
+    /**
      * Renders the first page of a PDF into a high-quality Bitmap.
      * Suitable for OCR, preview, and thumbnail caching.
      *
@@ -113,46 +132,58 @@ public final class PdfExportHelper {
      */
     @Nullable
     public static Bitmap renderFirstPage(@NonNull Context context, @NonNull Uri pdfUri, int maxDimension) {
+        final Bitmap[] firstPageHolder = new Bitmap[1];
+        processPdfPages(context, pdfUri, 1, maxDimension, (pageIndex, bitmap) -> {
+            firstPageHolder[0] = bitmap;
+        }, false);
+        return firstPageHolder[0];
+    }
+
+    /**
+     * Sequentially renders up to {@code maxPages} pages of a PDF URI, delivering each page
+     * bitmap to {@code processor} and automatically recycling the bitmap afterward.
+     */
+    public static void processPdfPages(@NonNull Context context,
+                                       @NonNull Uri pdfUri,
+                                       int maxPages,
+                                       int maxDimension,
+                                       @NonNull PdfPageProcessor processor) {
+        processPdfPages(context, pdfUri, maxPages, maxDimension, processor, true);
+    }
+
+    private static void processPdfPages(@NonNull Context context,
+                                        @NonNull Uri pdfUri,
+                                        int maxPages,
+                                        int maxDimension,
+                                        @NonNull PdfPageProcessor processor,
+                                        boolean recycleAfterCallback) {
         ParcelFileDescriptor pfd = null;
         PdfRenderer renderer = null;
-        PdfRenderer.Page page = null;
         try {
             pfd = context.getContentResolver().openFileDescriptor(pdfUri, "r");
-            if (pfd == null) return null;
+            if (pfd == null) return;
 
             renderer = new PdfRenderer(pfd);
-            if (renderer.getPageCount() == 0) return null;
-
-            page = renderer.openPage(0);
-            int pageWidth = page.getWidth();
-            int pageHeight = page.getHeight();
-
-            int targetWidth = pageWidth;
-            int targetHeight = pageHeight;
-
-            if (maxDimension > 0 && (pageWidth > maxDimension || pageHeight > maxDimension)) {
-                if (pageWidth >= pageHeight) {
-                    targetWidth = maxDimension;
-                    targetHeight = Math.max(1, (int) ((float) targetWidth * pageHeight / pageWidth));
-                } else {
-                    targetHeight = maxDimension;
-                    targetWidth = Math.max(1, (int) ((float) targetHeight * pageWidth / pageHeight));
+            int count = Math.min(renderer.getPageCount(), Math.max(1, maxPages));
+            for (int i = 0; i < count; i++) {
+                PdfRenderer.Page page = null;
+                Bitmap bitmap = null;
+                try {
+                    page = renderer.openPage(i);
+                    bitmap = renderOpenPage(page, maxDimension);
+                    processor.onPage(i, bitmap);
+                } finally {
+                    if (page != null) {
+                        try { page.close(); } catch (Exception ignored) {}
+                    }
+                    if (recycleAfterCallback && bitmap != null && !bitmap.isRecycled()) {
+                        bitmap.recycle();
+                    }
                 }
             }
-
-            Bitmap bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888);
-            Canvas canvas = new Canvas(bitmap);
-            canvas.drawColor(Color.WHITE);
-            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
-            return bitmap;
-
         } catch (Exception e) {
-            Log.e(TAG, "Failed to render PDF page 1: " + pdfUri, e);
-            return null;
+            Log.e(TAG, "Failed to render PDF pages: " + pdfUri, e);
         } finally {
-            if (page != null) {
-                try { page.close(); } catch (Exception ignored) {}
-            }
             if (renderer != null) {
                 try { renderer.close(); } catch (Exception ignored) {}
             }
@@ -160,6 +191,70 @@ public final class PdfExportHelper {
                 try { pfd.close(); } catch (Exception ignored) {}
             }
         }
+    }
+
+    @NonNull
+    private static Bitmap renderOpenPage(@NonNull PdfRenderer.Page page, int maxDimension) {
+        int pageWidth = page.getWidth();
+        int pageHeight = page.getHeight();
+
+        int targetWidth = pageWidth;
+        int targetHeight = pageHeight;
+
+        if (maxDimension > 0 && (pageWidth > maxDimension || pageHeight > maxDimension)) {
+            if (pageWidth >= pageHeight) {
+                targetWidth = maxDimension;
+                targetHeight = Math.max(1, (int) ((float) targetWidth * pageHeight / pageWidth));
+            } else {
+                targetHeight = maxDimension;
+                targetWidth = Math.max(1, (int) ((float) targetHeight * pageWidth / pageHeight));
+            }
+        }
+
+        Bitmap bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        canvas.drawColor(Color.WHITE);
+        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+        return bitmap;
+    }
+
+    /**
+     * Reads all bytes from a content URI.
+     */
+    @NonNull
+    public static byte[] readUriBytes(@NonNull Context context, @NonNull Uri uri) throws IOException {
+        try (InputStream is = context.getContentResolver().openInputStream(uri);
+             ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            if (is == null) {
+                throw new IOException("Unable to open InputStream for URI: " + uri);
+            }
+            byte[] buf = new byte[8192];
+            int len;
+            while ((len = is.read(buf)) != -1) {
+                baos.write(buf, 0, len);
+            }
+            return baos.toByteArray();
+        }
+    }
+
+    /**
+     * Writes raw PDF bytes into the app's GhostDocs/exports folder and returns its absolute path.
+     */
+    @NonNull
+    public static String saveExportedPdf(@NonNull Context context,
+                                         @NonNull byte[] pdfBytes,
+                                         @NonNull String docId,
+                                         @NonNull String title) throws IOException {
+        File exportDir = new File(context.getExternalFilesDir(null), "GhostDocs/exports");
+        if (!exportDir.exists()) exportDir.mkdirs();
+        String safeTitle = sanitizeFilename(title);
+        String shortId = docId.substring(0, Math.min(8, docId.length()));
+        File exportedPdf = new File(exportDir, safeTitle + "_" + shortId + ".pdf");
+        try (FileOutputStream fos = new FileOutputStream(exportedPdf)) {
+            fos.write(pdfBytes);
+            fos.flush();
+        }
+        return exportedPdf.getAbsolutePath();
     }
 
     /**

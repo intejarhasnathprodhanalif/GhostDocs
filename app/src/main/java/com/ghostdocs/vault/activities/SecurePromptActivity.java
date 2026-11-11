@@ -18,6 +18,7 @@ import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.service.WatcherService;
 import com.ghostdocs.vault.tasks.VaultExecutor;
 import com.ghostdocs.vault.util.NetworkHelper;
+import com.ghostdocs.vault.util.PdfExportHelper;
 
 import java.io.InputStream;
 
@@ -97,21 +98,27 @@ public class SecurePromptActivity extends AppCompatActivity {
             tvSnippet.setText("No OCR text snippet available.");
         }
 
-        // Asynchronously load preview bitmap from content Uri
+        // Asynchronously load preview bitmap from content Uri (image or PDF page 1)
         if (imageUri != null) {
             VaultExecutor.getInstance().execute(() -> {
-                try (InputStream is = getContentResolver().openInputStream(imageUri)) {
-                    BitmapFactory.Options opts = new BitmapFactory.Options();
-                    opts.inSampleSize = 2; // Downsample for fast display
-                    Bitmap bmp = BitmapFactory.decodeStream(is, null, opts);
-                    runOnUiThread(() -> {
-                        if (bmp != null) {
-                            ivPreview.setImageBitmap(bmp);
-                        }
-                    });
-                } catch (Exception e) {
-                    Log.e(TAG, "Failed to load image preview: " + imageUri, e);
+                Bitmap bmp = null;
+                if (PdfExportHelper.isPdf(mimeType, displayName)) {
+                    bmp = PdfExportHelper.renderFirstPage(this, imageUri, 800);
+                } else {
+                    try (InputStream is = getContentResolver().openInputStream(imageUri)) {
+                        BitmapFactory.Options opts = new BitmapFactory.Options();
+                        opts.inSampleSize = 2; // Downsample for fast display
+                        bmp = BitmapFactory.decodeStream(is, null, opts);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Failed to load image preview: " + imageUri, e);
+                    }
                 }
+                final Bitmap finalBmp = bmp;
+                runOnUiThread(() -> {
+                    if (finalBmp != null) {
+                        ivPreview.setImageBitmap(finalBmp);
+                    }
+                });
             });
         }
     }

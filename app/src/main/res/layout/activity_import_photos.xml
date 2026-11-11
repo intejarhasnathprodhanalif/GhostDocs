@@ -297,7 +297,7 @@
             android:layout_below="@id/cb_delete_originals"
             android:layout_marginTop="4dp"
             android:enabled="false"
-            android:text="Secure Selected Photos (0)"
+            android:text="Secure Selected (0)"
             android:textSize="14sp" />
 
     </RelativeLayout>
