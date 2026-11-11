@@ -26,6 +26,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.IntentSenderRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -127,20 +128,22 @@ public class ImportPhotosActivity extends AppCompatActivity
     private final ActivityResultLauncher<IntentSenderRequest> deleteIntentLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartIntentSenderForResult(),
-                    result -> {
-                        if (!pendingRecoverableQueue.isEmpty()) {
-                            IntentSender next = pendingRecoverableQueue.remove(0);
-                            deleteIntentLauncher.launch(new IntentSenderRequest.Builder(next).build());
-                            return;
-                        }
-                        if (result.getResultCode() == RESULT_OK) {
-                            Toast.makeText(this, "Original photos deleted from gallery.", Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(this, "Gallery deletion not permitted — original photo kept in gallery.", Toast.LENGTH_LONG).show();
-                        }
-                        scanGalleryScreenshots();
-                    }
+                    this::handleDeleteConsentResult
             );
+
+    private void handleDeleteConsentResult(ActivityResult result) {
+        if (!pendingRecoverableQueue.isEmpty()) {
+            IntentSender next = pendingRecoverableQueue.remove(0);
+            deleteIntentLauncher.launch(new IntentSenderRequest.Builder(next).build());
+            return;
+        }
+        if (result.getResultCode() == RESULT_OK) {
+            Toast.makeText(this, "Original photos deleted from gallery.", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Gallery deletion not permitted — original photo kept in gallery.", Toast.LENGTH_LONG).show();
+        }
+        scanGalleryScreenshots();
+    }
 
     // ── System Gallery Multi-Picker Launcher ─────────────────────────────────
     private final ActivityResultLauncher<String> galleryPickerLauncher =
