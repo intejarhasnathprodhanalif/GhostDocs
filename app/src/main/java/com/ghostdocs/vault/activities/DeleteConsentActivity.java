@@ -14,10 +14,13 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.IntentSenderRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationManagerCompat;
 
+import com.ghostdocs.vault.tasks.VaultExecutor;
 import com.ghostdocs.vault.util.MediaDeleteHelper;
+import com.ghostdocs.vault.util.PermissionHelper;
 
 import java.util.Collections;
 
@@ -66,19 +69,18 @@ public class DeleteConsentActivity extends AppCompatActivity {
         }
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                String uriStr = intent.getStringExtra(EXTRA_TARGET_URI);
-                if (uriStr != null) {
-                    Uri targetUri = Uri.parse(uriStr);
-                    Uri canonical = MediaDeleteHelper.resolveDeletableMediaUri(this, targetUri, null, 0);
-                    if (canonical != null && MediaDeleteHelper.isCanonicalMediaStoreUri(canonical)) {
-                        PendingIntent pi = MediaStore.createDeleteRequest(
-                                getContentResolver(),
-                                Collections.singletonList(canonical)
-                        );
-                        deleteLauncher.launch(new IntentSenderRequest.Builder(pi.getIntentSender()).build());
-                        return;
-                    }
+            String uriStr = intent.getStringExtra(EXTRA_TARGET_URI);
+            Uri targetUri = uriStr != null ? Uri.parse(uriStr) : null;
+
+            if (targetUri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Uri canonical = MediaDeleteHelper.resolveDeletableMediaUri(this, targetUri, null, 0);
+                if (canonical != null && MediaDeleteHelper.isCanonicalMediaStoreUri(canonical)) {
+                    PendingIntent pi = MediaStore.createDeleteRequest(
+                            getContentResolver(),
+                            Collections.singletonList(canonical)
+                    );
+                    deleteLauncher.launch(new IntentSenderRequest.Builder(pi.getIntentSender()).build());
+                    return;
                 }
             }
 
@@ -89,11 +91,43 @@ public class DeleteConsentActivity extends AppCompatActivity {
                 deleteLauncher.launch(new IntentSenderRequest.Builder(recoverableSender).build());
                 return;
             }
+
+            // Non-media files (such as PDFs) on Android 11+ require All Files Access to delete directly
+            if (targetUri != null) {
+                if (PermissionHelper.hasManageStoragePermission(this)) {
+                    VaultExecutor.getInstance().execute(() -> {
+                        MediaDeleteHelper.DeleteAttemptResult res =
+                                MediaDeleteHelper.tryDirectDelete(this, targetUri, null, 0);
+                        runOnUiThread(() -> {
+                            Toast.makeText(this,
+                                    res.isDeleted()
+                                            ? "Original document removed from storage."
+                                            : "Could not remove original file from this provider.",
+                                    Toast.LENGTH_SHORT).show();
+                            finish();
+                        });
+                    });
+                    return;
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    new AlertDialog.Builder(this)
+                            .setTitle("All Files Access Needed")
+                            .setMessage("Android requires 'All Files Access' to remove secured PDFs directly from device storage.")
+                            .setPositiveButton("Open Settings", (d, w) -> {
+                                PermissionHelper.openManageStorageSettings(this);
+                                finish();
+                            })
+                            .setNegativeButton("Keep File", (d, w) -> finish())
+                            .setOnCancelListener(d -> finish())
+                            .show();
+                    return;
+                }
+            }
         } catch (Exception e) {
             Log.e(TAG, "Failed to launch system delete consent dialog", e);
         }
 
-        Toast.makeText(this, "Could not launch gallery delete prompt.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Could not launch storage delete prompt.", Toast.LENGTH_SHORT).show();
         finish();
     }
 }
+

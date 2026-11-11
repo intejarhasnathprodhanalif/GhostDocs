@@ -32,6 +32,7 @@ import androidx.activity.result.IntentSenderRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -51,6 +52,7 @@ import com.ghostdocs.vault.util.MediaDeleteHelper;
 import com.ghostdocs.vault.util.NetworkHelper;
 import com.ghostdocs.vault.util.NotificationHelper;
 import com.ghostdocs.vault.util.PdfExportHelper;
+import com.ghostdocs.vault.util.PermissionHelper;
 import com.google.android.gms.tasks.Tasks;
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
@@ -152,10 +154,10 @@ public class ImportPhotosActivity extends AppCompatActivity
                     this::handleManualGallerySelection
             );
 
-    // ── System PDF Multi-Picker Launcher ─────────────────────────────────────
-    private final ActivityResultLauncher<String> pdfPickerLauncher =
+    // ── System PDF Multi-Picker Launcher (SAF OpenDocument supports deletion) ──
+    private final ActivityResultLauncher<String[]> pdfPickerLauncher =
             registerForActivityResult(
-                    new ActivityResultContracts.GetMultipleContents(),
+                    new ActivityResultContracts.OpenMultipleDocuments(),
                     this::handleManualGallerySelection
             );
 
@@ -246,7 +248,7 @@ public class ImportPhotosActivity extends AppCompatActivity
         View btnBrowsePdf = findViewById(R.id.btn_browse_pdf);
         if (btnBrowsePdf != null) {
             btnBrowsePdf.setOnClickListener(v -> {
-                pdfPickerLauncher.launch("application/pdf");
+                pdfPickerLauncher.launch(new String[]{"application/pdf"});
             });
         }
 
@@ -564,7 +566,8 @@ public class ImportPhotosActivity extends AppCompatActivity
                         MediaStore.Files.FileColumns.DISPLAY_NAME,
                         MediaStore.Files.FileColumns.MIME_TYPE,
                         MediaStore.Files.FileColumns.DATE_ADDED,
-                        MediaStore.Files.FileColumns.SIZE
+                        MediaStore.Files.FileColumns.SIZE,
+                        MediaStore.Files.FileColumns.DATA
                 };
                 String pdfSelection = "(" + MediaStore.Files.FileColumns.MIME_TYPE + " = 'application/pdf' OR "
                         + MediaStore.Files.FileColumns.DISPLAY_NAME + " LIKE '%.pdf') AND "
@@ -578,8 +581,15 @@ public class ImportPhotosActivity extends AppCompatActivity
                         int mimeCol = pdfCursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE);
                         int dateCol = pdfCursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_ADDED);
                         int sizeCol = pdfCursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE);
+                        int dataCol = pdfCursor.getColumnIndex(MediaStore.Files.FileColumns.DATA);
 
                         while (pdfCursor.moveToNext()) {
+                            if (dataCol != -1 && PermissionHelper.hasManageStoragePermission(this)) {
+                                String filePath = pdfCursor.getString(dataCol);
+                                if (filePath != null && !filePath.trim().isEmpty() && !new File(filePath).exists()) {
+                                    continue;
+                                }
+                            }
                             long id = pdfCursor.getLong(idCol);
                             String displayName = pdfCursor.getString(nameCol);
                             String mimeType = pdfCursor.getString(mimeCol);
@@ -662,8 +672,7 @@ public class ImportPhotosActivity extends AppCompatActivity
                     mimeType = "application/pdf";
                 }
 
-                Uri canonicalUri = isPdfUri ? null
-                        : MediaDeleteHelper.resolveDeletableMediaUri(this, uri, displayName, size);
+                Uri canonicalUri = MediaDeleteHelper.resolveDeletableMediaUri(this, uri, displayName, size);
                 boolean isAlreadyVaulted = vaultedUriStrings.contains(uri.toString())
                         || (canonicalUri != null && vaultedUriStrings.contains(canonicalUri.toString()));
                 GalleryPhotoItem item = new GalleryPhotoItem(
@@ -995,8 +1004,8 @@ public class ImportPhotosActivity extends AppCompatActivity
 
                     // Firestore sync confirmed! Mark as vaulted
                     vaultedUriStrings.add(item.getUri().toString());
-                    Uri canonicalMediaUri = item.isPdf() ? null
-                            : MediaDeleteHelper.resolveDeletableMediaUri(this, item.getUri(), item.getDisplayName(), item.getSize());
+                    Uri canonicalMediaUri = MediaDeleteHelper.resolveDeletableMediaUri(
+                            this, item.getUri(), item.getDisplayName(), item.getSize());
                     if (canonicalMediaUri != null) {
                         vaultedUriStrings.add(canonicalMediaUri.toString());
                     }
@@ -1115,6 +1124,21 @@ public class ImportPhotosActivity extends AppCompatActivity
                 }
 
                 if (deleteOriginals && finalUnresolvableDelete) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                            && !PermissionHelper.hasManageStoragePermission(ImportPhotosActivity.this)) {
+                        new AlertDialog.Builder(ImportPhotosActivity.this)
+                                .setTitle("All Files Access Needed")
+                                .setMessage("Secured to vault, but Android prevented deleting an original file "
+                                        + "(such as a PDF outside the app). Enable 'All Files Access' in Settings "
+                                        + "to remove PDFs directly from device storage.")
+                                .setPositiveButton("Open Settings", (d, w) -> {
+                                    PermissionHelper.openManageStorageSettings(ImportPhotosActivity.this);
+                                    scanGalleryScreenshots();
+                                })
+                                .setNegativeButton("Later", (d, w) -> scanGalleryScreenshots())
+                                .show();
+                        return;
+                    }
                     Toast.makeText(ImportPhotosActivity.this,
                             "Secured to vault, but Android prevented removing the source copy from this provider.",
                             Toast.LENGTH_LONG).show();
