@@ -95,9 +95,9 @@ public class VaultActivity extends AppCompatActivity
         implements VaultRecyclerAdapter.OnDocumentClickListener {
 
     private static final String TAG = "GhostDocs.Vault";
-    private static final String PREFS_NAME      = "GhostDocsPrefs";
-    private static final String PREF_WATCHER_ON = "watcher_enabled";
-    private static final int    GRID_SPAN_COUNT = 2;
+    private static final String PREFS_NAME            = "GhostDocsPrefs";
+    private static final String PREF_WATCHER_ON       = "watcher_enabled";
+    private static final String KEY_SELECTED_CATEGORY = "selected_category_id";
 
     // ── Views ────────────────────────────────────────────────────────────────
     private RecyclerView              rvVault;
@@ -144,6 +144,11 @@ public class VaultActivity extends AppCompatActivity
 
         firebaseAuth = FirebaseAuth.getInstance();
         firestore    = FirebaseFirestore.getInstance();
+
+        if (savedInstanceState != null) {
+            selectedCategoryId = savedInstanceState.getString(
+                    KEY_SELECTED_CATEGORY, CategoryChipModel.CATEGORY_ALL);
+        }
 
         bindViews();
         setupRecyclerView();
@@ -220,6 +225,12 @@ public class VaultActivity extends AppCompatActivity
     }
 
     @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(KEY_SELECTED_CATEGORY, selectedCategoryId);
+    }
+
+    @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
@@ -255,6 +266,7 @@ public class VaultActivity extends AppCompatActivity
                 selectedCategoryId = categoryId;
                 applyFilters();
             });
+            categoryChipAdapter.setSelectedCategoryId(selectedCategoryId);
             LinearLayoutManager layoutManager =
                     new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
             rvCategoryChips.setLayoutManager(layoutManager);
@@ -263,16 +275,16 @@ public class VaultActivity extends AppCompatActivity
     }
 
     /**
-     * Configures the RecyclerView with a 2-column GridLayoutManager and
-     * the VaultRecyclerAdapter backed by an initially empty list.
+     * Configures the RecyclerView with a responsive GridLayoutManager (2 columns in portrait,
+     * 3 columns in landscape) and the VaultRecyclerAdapter backed by an initially empty list.
      * The adapter is seeded with live data once the Firestore listener fires.
      */
     private void setupRecyclerView() {
         vaultAdapter = new VaultRecyclerAdapter(this, filteredDocumentList);
         vaultAdapter.setOnDocumentClickListener(this);
 
-        GridLayoutManager layoutManager =
-                new GridLayoutManager(this, GRID_SPAN_COUNT);
+        int spanCount = getResources().getInteger(R.integer.vault_grid_span_count);
+        GridLayoutManager layoutManager = new GridLayoutManager(this, spanCount);
 
         rvVault.setLayoutManager(layoutManager);
         rvVault.setAdapter(vaultAdapter);

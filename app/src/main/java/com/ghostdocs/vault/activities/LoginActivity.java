@@ -15,6 +15,7 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.ghostdocs.vault.R;
@@ -77,6 +78,7 @@ import com.google.firebase.auth.GoogleAuthProvider;
 public class LoginActivity extends AppCompatActivity {
 
     private static final String TAG = "GhostDocs.Login";
+    private static final String KEY_SIGN_IN_MODE = "is_sign_in_mode";
 
     // ── UI State ─────────────────────────────────────────────────────────────
     /** {@code true} = Sign In mode | {@code false} = Register mode */
@@ -111,7 +113,19 @@ public class LoginActivity extends AppCompatActivity {
         initFirebase();
         initGoogleSignIn();
         setClickListeners();
-        animateEntrance();
+
+        if (savedInstanceState != null) {
+            isSignInMode = savedInstanceState.getBoolean(KEY_SIGN_IN_MODE, true);
+            applyModeLabels();
+        } else {
+            animateEntrance();
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(KEY_SIGN_IN_MODE, isSignInMode);
     }
 
     private void animateEntrance() {
@@ -231,31 +245,25 @@ public class LoginActivity extends AppCompatActivity {
 
         if (btnPrimaryAction != null) {
             btnPrimaryAction.animate().alpha(0f).scaleX(0.95f).scaleY(0.95f).setDuration(120).withEndAction(() -> {
-                if (isSignInMode) {
-                    tvSectionLabel.setText(getString(R.string.login_title));
-                    btnPrimaryAction.setText(getString(R.string.btn_login_email));
-                    tvToggleLabel.setText(getString(R.string.label_no_account));
-                    tvToggleAction.setText(getString(R.string.btn_register));
-                } else {
-                    tvSectionLabel.setText(getString(R.string.btn_register));
-                    btnPrimaryAction.setText(getString(R.string.btn_register));
-                    tvToggleLabel.setText("Already have an account?");
-                    tvToggleAction.setText(getString(R.string.btn_login_email));
-                }
+                applyModeLabels();
                 btnPrimaryAction.animate().alpha(1f).scaleX(1.0f).scaleY(1.0f).setDuration(140).start();
             }).start();
         } else {
-            if (isSignInMode) {
-                tvSectionLabel.setText(getString(R.string.login_title));
-                btnPrimaryAction.setText(getString(R.string.btn_login_email));
-                tvToggleLabel.setText(getString(R.string.label_no_account));
-                tvToggleAction.setText(getString(R.string.btn_register));
-            } else {
-                tvSectionLabel.setText(getString(R.string.btn_register));
-                btnPrimaryAction.setText(getString(R.string.btn_register));
-                tvToggleLabel.setText("Already have an account?");
-                tvToggleAction.setText(getString(R.string.btn_login_email));
-            }
+            applyModeLabels();
+        }
+    }
+
+    private void applyModeLabels() {
+        if (isSignInMode) {
+            tvSectionLabel.setText(getString(R.string.login_title));
+            btnPrimaryAction.setText(getString(R.string.btn_login_email));
+            tvToggleLabel.setText(getString(R.string.label_no_account));
+            tvToggleAction.setText(getString(R.string.btn_register));
+        } else {
+            tvSectionLabel.setText(getString(R.string.btn_register));
+            btnPrimaryAction.setText(getString(R.string.btn_register));
+            tvToggleLabel.setText("Already have an account?");
+            tvToggleAction.setText(getString(R.string.btn_login_email));
         }
     }
 

@@ -135,8 +135,9 @@ public class LaunchActivity extends AppCompatActivity {
             badge.animate().alpha(1f).translationY(0f).setDuration(500).setStartDelay(350).start();
         }
 
-        // Brief splash delay, then evaluate auth state
-        mainHandler.postDelayed(this::checkAuthAndRoute, SPLASH_DELAY_MS);
+        // Brief splash delay on cold launch; fast-track after configuration change
+        int delayMs = savedInstanceState != null ? REPROMPT_DELAY_MS : SPLASH_DELAY_MS;
+        mainHandler.postDelayed(this::checkAuthAndRoute, delayMs);
     }
 
     @Override

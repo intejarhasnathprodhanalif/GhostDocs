@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  layout-land/dialog_qr_share.xml — Landscape Air-Gapped QR Dialog
+  Left: QR Code Matrix | Right: Document Title, Category Badge, Instructions & Close.
+-->
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/ghostSurface"
+    android:padding="20dp">
+
+    <!-- Left QR Matrix Container -->
+    <RelativeLayout
+        android:id="@+id/container_qr"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:layout_alignParentStart="true"
+        android:layout_centerVertical="true"
+        android:background="@drawable/bg_card_preview"
+        android:padding="12dp">
+
+        <ImageView
+            android:id="@+id/iv_qr_code"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/cd_qr_code"
+            android:scaleType="fitCenter" />
+
+        <ProgressBar
+            android:id="@+id/pb_qr_loading"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_centerInParent="true"
+            android:indeterminateTint="@color/ghostPrimary"
+            android:visibility="gone" />
+
+    </RelativeLayout>
+
+    <!-- Right Info & Close Column -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_marginStart="20dp"
+        android:layout_toEndOf="@id/container_qr">
+
+        <TextView
+            android:id="@+id/tv_qr_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:text="Air-Gapped Vault Share"
+            android:textColor="@color/ghostOnSurface"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_qr_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/tv_qr_title"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_doc_badge"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="RECEIPT"
+            android:textColor="@color/ghostPrimary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_qr_instructions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/tv_qr_type"
+            android:layout_marginTop="12dp"
+            android:lineSpacingMultiplier="1.2"
+            android:text="Air-Gapped Card: Scan with any phone camera or QR reader to verify document details without internet."
+            android:textColor="@color/ghostOnSurfaceMuted"
+            android:textSize="12sp" />
+
+        <RelativeLayout
+            android:id="@+id/layout_qr_actions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/tv_qr_instructions"
+            android:layout_marginTop="16dp">
+
+            <TextView
+                android:id="@+id/btn_qr_close"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chip_selected"
+                android:gravity="center"
+                android:paddingHorizontal="24dp"
+                android:paddingVertical="10dp"
+                android:text="Close"
+                android:textColor="@color/ghostOnPrimary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+</RelativeLayout>

@@ -100,7 +100,6 @@ public class ImportPhotosActivity extends AppCompatActivity
         implements GalleryPhotoAdapter.OnSelectionChangedListener {
 
     private static final String TAG = "GhostDocs.ImportPhotos";
-    private static final int GRID_SPAN = 3;
 
     // ── Views ────────────────────────────────────────────────────────────────
     private RecyclerView         rvGalleryGrid;
@@ -222,7 +221,8 @@ public class ImportPhotosActivity extends AppCompatActivity
 
     private void setupRecyclerView() {
         galleryAdapter = new GalleryPhotoAdapter(this, displayedPhotoList, this);
-        rvGalleryGrid.setLayoutManager(new GridLayoutManager(this, GRID_SPAN));
+        int spanCount = getResources().getInteger(R.integer.import_grid_span_count);
+        rvGalleryGrid.setLayoutManager(new GridLayoutManager(this, spanCount));
         rvGalleryGrid.setAdapter(galleryAdapter);
         rvGalleryGrid.setHasFixedSize(true);
     }

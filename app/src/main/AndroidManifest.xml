@@ -83,7 +83,6 @@
         <activity
             android:name=".activities.LaunchActivity"
             android:exported="true"
-            android:screenOrientation="portrait"
             android:theme="@style/Theme.GhostDocs.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -98,7 +97,6 @@
         <activity
             android:name=".activities.LoginActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
 
         <!--
@@ -109,7 +107,6 @@
         <activity
             android:name=".activities.VaultActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
             android:launchMode="singleTop" />
 
         <!--
@@ -118,8 +115,7 @@
         -->
         <activity
             android:name=".activities.SettingsActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
+            android:exported="false" />
 
         <!--
             SecurePromptActivity: Interactive confirmation prompt asking the user
@@ -127,8 +123,7 @@
         -->
         <activity
             android:name=".activities.SecurePromptActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
+            android:exported="false" />
 
         <!--
             ImportPhotosActivity: Scans and imports pre-existing photos & screenshots
@@ -136,8 +131,7 @@
         -->
         <activity
             android:name=".activities.ImportPhotosActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
+            android:exported="false" />
 
         <!--
             ProfileActivity: User profile, display name, password updates,
@@ -146,7 +140,6 @@
         <activity
             android:name=".activities.ProfileActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
 
         <!-- ── SERVICES ────────────────────────────────────────────────── -->
