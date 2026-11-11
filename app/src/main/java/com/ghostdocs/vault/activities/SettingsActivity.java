@@ -518,9 +518,9 @@ public class SettingsActivity extends AppCompatActivity {
                 .setTitle(getString(R.string.app_name))
                 .setMessage(getString(R.string.app_tagline)
                         + "\n\nVersion 1.0.0"
-                        + "\n\nZero-knowledge Android security vault that monitors, crops (OpenCV), extracts multi-page OCR text (ML Kit), classifies, and seals sensitive photos, IDs, and PDFs into hardware-backed Dual AES-256-GCM vaults synced with Firebase."
+                        + "\n\nZero-knowledge Android security vault that monitors, extracts multi-page OCR text (ML Kit), classifies, and seals sensitive photos, IDs, and PDFs into hardware-backed AES-256-GCM vaults synced with Firebase."
                         + "\n\nTip: Before uninstalling the app, tap 'Restore All to Gallery' in Settings to return all your photos back to your regular Gallery!"
-                        + "\n\n100% Java · Firebase · ML Kit · OpenCV · ZXing")
+                        + "\n\n100% Java · Firebase · ML Kit · ZXing")
                 .setPositiveButton("OK", null)
                 .show();
     }

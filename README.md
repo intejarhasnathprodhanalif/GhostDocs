@@ -9,15 +9,15 @@
 
 ## 📖 Project Description
 
-**GhostDocs** is a 100% Java Android security application built around an invisible background guardian (`WatcherService`) and a biometric-locked vault dashboard. It automatically monitors newly captured photos, screenshots, and saved PDFs—or lets you batch-import existing files from your gallery and downloads—crops physical cards and documents with OpenCV, extracts multi-page text with on-device Google ML Kit OCR, classifies items into intelligent genres (Identity/IDs, Financial Receipts, Medical Prescriptions, Passwords, Study Notes, and General), seals both the processed document and its untouched original backup using Android KeyStore-backed **AES-256-GCM Dual-Vault encryption**, removes originals cleanly under Android 10–15 Scoped Storage, generates searchable PDFs and air-gapped QR verification cards, and synchronizes metadata with Firebase Cloud Firestore and Realtime Database.
+**GhostDocs** is a 100% Java Android security application built around an invisible background guardian (`WatcherService`) and a biometric-locked vault dashboard. It automatically monitors newly captured photos, screenshots, and saved PDFs—or lets you batch-import existing files from your gallery and downloads—extracts multi-page text with on-device Google ML Kit OCR, classifies items into intelligent genres (Identity/IDs, Financial Receipts, Medical Prescriptions, Passwords, Study Notes, and General), seals the untouched image or native PDF using Android KeyStore-backed **AES-256-GCM hardware encryption**, removes originals cleanly under Android 10–15 Scoped Storage, generates searchable PDFs and air-gapped QR verification cards, and synchronizes metadata with Firebase Cloud Firestore and Realtime Database.
 
 ---
 
 ## ✨ Key Features
 
-* **Dual AES-256-GCM Vault Architecture**:
-  * **Primary Vault (`<docId>.enc`)**: Encrypts the OpenCV perspective-flattened document/card image (or lossless native PDF bytes) using a hardware-backed Android KeyStore AES-256-GCM key with a unique 12-byte IV per file.
-  * **Recovery Vault (`<docId>_orig.enc`)**: Automatically retains an encrypted copy of the untouched original camera photo whenever OpenCV crops a card or document, enabling full recovery back to your gallery or lossless export.
+* **Hardware-Backed AES-256-GCM Encryption**:
+  * **Encrypted Vault (`<docId>.enc`)**: Encrypts each captured photo, screenshot, or native PDF as-captured (with zero unwanted border cropping) using a hardware-backed Android KeyStore AES-256-GCM key with a unique 12-byte IV per file.
+  * **Lossless Recovery**: Vaulted photos and PDFs can be exported back to your device gallery or Downloads at any time in full fidelity.
 * **Photos & PDFs Full Parity**:
   * Supports both images (`JPEG`/`PNG`) and multi-page PDF documents across gallery batch import (`ImportPhotosActivity`), real-time `WatcherService` detection, and Vault management.
   * Multi-page PDF OCR (`OcrTask` via `PdfExportHelper`, up to 4 pages per PDF) for classification, full-text search, and smart titling.
@@ -48,7 +48,6 @@
   * **Firebase Realtime Database**: Live Watcher telemetry stream (`ACTIVE`, `SCANNING`, `STOPPED`, `OFFLINE`).
 * **Libraries**:
   * Google ML Kit Text Recognition (`com.google.mlkit:text-recognition:16.0.1`)
-  * OpenCV for Android (`org.opencv:opencv:4.10.0`)
   * ZXing Core (`com.google.zxing:core:3.5.3`)
   * Firebase Android BoM (`com.google.firebase:firebase-bom:35.1.0`) & Google Play Services Auth
 
@@ -71,7 +70,7 @@
 | **BroadcastReceiver** | `BootReceiver.java` | Restarts `WatcherService` on `BOOT_COMPLETED` (respecting user preferences). |
 | **AppWidgetProvider** | `VaultWidgetProvider.java` | Home screen widget showing live secured count, Watcher state, and quick open. |
 | **ContentProvider** | `androidx.core.content.FileProvider` | Secure sandboxed URI sharing for PDFs, JPGs, and exports (`file_provider_paths.xml`). |
-| **Multithreading** | `VaultExecutor.java` & `BaseVaultTask.java` | Fixed 4-thread daemon pool executing CV, OCR, AES encryption, and PDF tasks off UI thread. |
+| **Multithreading** | `VaultExecutor.java` & `BaseVaultTask.java` | Fixed 4-thread daemon pool executing decoding, OCR, AES encryption, and PDF tasks off UI thread. |
 
 ---
 
@@ -79,11 +78,11 @@
 
 1. **Encapsulation**:
    * `DocumentModel` & `GalleryPhotoItem`: Private state with controlled accessors and JSON/Firestore mapping.
-   * `AesEncryptionHelper`: Android KeyStore AES-256-GCM key management, 12-byte IV prepending, and dual-vault encryption/decryption streams.
-   * `OpenCvCropper`: Native OpenCV `Mat` lifecycle, multi-strategy edge/Otsu contour detection (including rounded-corner ID cards), and explicit matrix release.
+   * `AesEncryptionHelper`: Android KeyStore AES-256-GCM key management, 12-byte IV prepending, and file encryption/decryption streams.
+   * `ImageDecodeHelper`: OOM-safe full-frame bitmap decoding via `ImageDecoder` / `BitmapFactory`.
    * `MediaDeleteHelper`: Encapsulates Photo Picker, `media.documents`, and `MediaStore` canonical URI resolution & deletion fallback.
 2. **Inheritance**:
-   * `BaseVaultTask<T>` extended by `CropTask`, `OcrTask`, `EncryptTask`, and `PdfGeneratorTask`.
+   * `BaseVaultTask<T>` extended by `OcrTask`, `EncryptTask`, and `PdfGeneratorTask`.
    * `VaultRecyclerAdapter` (`RecyclerView.Adapter`), `GalleryPhotoAdapter` (`RecyclerView.Adapter`), and `LogListAdapter` (`ArrayAdapter`).
 3. **Polymorphism**:
    * `DocumentRule` interface implemented by `ExplicitIdentityRule`, `TransactionRule`, `PasswordRule`, `PrescriptionRule`, `IdentityFallbackRule`, and `StudyNoteRule`.
@@ -102,9 +101,8 @@
                           ↓
             VaultExecutor (Worker Pool)
                           ↓
-  ┌─ If Photo: OpenCvCropper (CropTask) ──────────────────────┐
-  │    • 3-pass contour detection + rounded-card minAreaRect  │
-  │    • 4-point perspective warp (retaining uncropped copy)  │
+  ┌─ If Photo: ImageDecodeHelper ─────────────────────────────┐
+  │    • Preserves full capture framing without cropping      │
   └─ If PDF: PdfExportHelper.processPdfPages ─────────────────┘
                           ↓
   2. ML Kit Text Recognition (OcrTask)
@@ -115,9 +113,8 @@
      • Classifies ID / Receipt / Prescription / Password / Study Note / Other
      • Generates smart contextual title & structured tags
                           ↓
-  4. Dual AES-256-GCM Encryption (EncryptTask / AesEncryptionHelper)
-     • <docId>.enc      → Processed document or lossless native PDF
-     • <docId>_orig.enc → Untouched original photo for recovery
+  4. AES-256-GCM Encryption (EncryptTask / AesEncryptionHelper)
+     • <docId>.enc → Full-frame photo or lossless native PDF
      • Scoped Storage deletion (MediaDeleteHelper / createDeleteRequest)
                           ↓
   5. Searchable PDF & Export (PdfGeneratorTask / PdfExportHelper)

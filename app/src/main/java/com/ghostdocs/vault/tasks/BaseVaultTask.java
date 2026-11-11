@@ -15,9 +15,9 @@ import androidx.annotation.Nullable;
  * entire document processing pipeline:
  * <ul>
  *   <li><b>Inheritance:</b> Serves as the abstract base class for {@code OcrTask},
- *       {@code CropTask}, {@code EncryptTask}, and {@code PdfTask}.</li>
+ *       {@code EncryptTask}, and {@code PdfGeneratorTask}.</li>
  *   <li><b>Polymorphism:</b> Subclasses override {@link #doInBackground()} with their
- *       own specialized algorithms (ML Kit OCR, OpenCV Mat manipulation, AES crypto,
+ *       own specialized algorithms (ML Kit OCR, AES crypto,
  *       or PdfDocument generation). The execution flow treats all tasks polymorphically.</li>
  *   <li><b>Abstraction:</b> The {@link TaskCallback} generic interface decouples background
  *       execution from UI thread results. Callers depend purely on this contract.</li>

@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * VaultExecutor — Thread Pool Management for Heavy Vault Operations
  *
  * <p>Encapsulates an {@link ExecutorService} with a fixed pool of daemon worker
- * threads. Strictly prevents any blocking operations (OCR, OpenCV Mat operations,
+ * threads. Strictly prevents any blocking operations (OCR, bitmap decoding,
  * AES-256 cryptographic transformations, and PDF rendering) from stalling
  * the Android Main/UI thread.
  *

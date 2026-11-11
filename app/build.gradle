@@ -100,11 +100,6 @@ dependencies {
     implementation 'com.google.mlkit:text-recognition:16.0.1'
 
     // ════════════════════════════════════════════════════════════════════════
-    // OpenCV — Smart Crop & Perspective Transform — Feature 4
-    // ════════════════════════════════════════════════════════════════════════
-    implementation 'org.opencv:opencv:4.10.0'
-
-    // ════════════════════════════════════════════════════════════════════════
     // ZXing — QR Code Bitmap Generation (pure Java core, no Android wrapper)
     // Feature 7: Air-Gapped QR Share
     // ════════════════════════════════════════════════════════════════════════

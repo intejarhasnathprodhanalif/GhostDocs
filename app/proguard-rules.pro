@@ -20,10 +20,6 @@
 -keep class com.google.mlkit.** { *; }
 -dontwarn com.google.mlkit.**
 
-# ── OpenCV ────────────────────────────────────────────────────────────────
--keep class org.opencv.** { *; }
--dontwarn org.opencv.**
-
 # ── ZXing (QR code generation) ────────────────────────────────────────────
 -keep class com.google.zxing.** { *; }
 -dontwarn com.google.zxing.**

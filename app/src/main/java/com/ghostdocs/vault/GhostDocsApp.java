@@ -21,7 +21,7 @@ import com.google.firebase.firestore.PersistentCacheSettings;
  *   <li>Create Android {@link NotificationChannel}s on API 26+ (required before
  *       posting any notification).</li>
  *   <li>Provide a global application context reference.</li>
- *   <li>Future: Initialize Firebase App, OpenCV, and Crashlytics here.</li>
+ *   <li>Future: Initialize Firebase App and Crashlytics here.</li>
  * </ul>
  *
  * <p>OOP Note: This class extends {@link Application} (Inheritance) and encapsulates
@@ -55,25 +55,8 @@ public class GhostDocsApp extends Application {
         // Configure Firestore offline persistence (required by spec)
         configureFirestore();
 
-        // Initialize OpenCV for smart cropping & perspective transforms
-        initializeOpenCv();
-
         // Create notification channels once at app startup
         createNotificationChannels();
-    }
-
-    /**
-     * Initializes the OpenCV native library for on-device computer vision.
-     */
-    private void initializeOpenCv() {
-        try {
-            if (!org.opencv.android.OpenCVLoader.initLocal()) {
-                org.opencv.android.OpenCVLoader.initDebug();
-            }
-            Log.i("GhostDocsApp", "OpenCV initialized successfully.");
-        } catch (Throwable t) {
-            Log.w("GhostDocsApp", "OpenCV initialization note: " + t.getMessage());
-        }
     }
 
     /**
