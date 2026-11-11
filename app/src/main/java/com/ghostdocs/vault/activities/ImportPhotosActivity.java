@@ -1069,6 +1069,7 @@ public class ImportPhotosActivity extends AppCompatActivity
             final boolean wasCancelled = isSecuringCancelled;
             final String interruptionScenario = securingInterruptionScenario;
             final int totalRequested = total;
+            final boolean finalUnresolvableDelete = hadUnresolvableDeleteFailure;
 
             runOnUiThread(() -> {
                 unregisterNetworkListeners();
@@ -1126,7 +1127,7 @@ public class ImportPhotosActivity extends AppCompatActivity
                     return;
                 }
 
-                if (deleteOriginals && hadUnresolvableDeleteFailure) {
+                if (deleteOriginals && finalUnresolvableDelete) {
                     Toast.makeText(ImportPhotosActivity.this,
                             "Secured to vault, but Android prevented removing the source copy from this provider.",
                             Toast.LENGTH_LONG).show();
