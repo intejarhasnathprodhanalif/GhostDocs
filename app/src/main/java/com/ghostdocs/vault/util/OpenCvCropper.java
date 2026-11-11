@@ -38,7 +38,9 @@ public final class OpenCvCropper {
 
     private static final String TAG = "GhostDocs.OpenCv";
     private static final double TARGET_PROCESSING_HEIGHT = 800.0;
-    private static final double MIN_DOCUMENT_AREA_RATIO = 0.12; // Must be at least 12% of total image
+    private static final double MIN_DOCUMENT_AREA_RATIO = 0.25; // Must be at least 25% of total image
+    private static final double MAX_DOCUMENT_AREA_RATIO = 0.96; // Ignore outer frame border noise
+    private static final double MIN_DIMENSION_RATIO = 0.25;     // Prevent wide thin UI banners from matching
 
     private OpenCvCropper() {
         throw new UnsupportedOperationException("OpenCvCropper is a utility class.");
@@ -125,11 +127,25 @@ public final class OpenCvCropper {
                 double area = Imgproc.contourArea(approx2f);
 
                 if (approx2f.total() == 4 && Imgproc.isContourConvex(new MatOfPoint(approx2f.toArray()))) {
-                    if (area >= (totalArea * MIN_DOCUMENT_AREA_RATIO)) {
-                        documentCorners = approx2f.toArray();
-                        approx2f.release();
-                        contour2f.release();
-                        break;
+                    double areaRatio = area / totalArea;
+                    if (areaRatio >= MIN_DOCUMENT_AREA_RATIO && areaRatio <= MAX_DOCUMENT_AREA_RATIO) {
+                        Point[] pts = approx2f.toArray();
+                        double minX = Double.MAX_VALUE, maxX = -Double.MAX_VALUE;
+                        double minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+                        for (Point p : pts) {
+                            if (p.x < minX) minX = p.x;
+                            if (p.x > maxX) maxX = p.x;
+                            if (p.y < minY) minY = p.y;
+                            if (p.y > maxY) maxY = p.y;
+                        }
+                        double widthRatio = (maxX - minX) / resizedWidth;
+                        double heightRatio = (maxY - minY) / resizedHeight;
+                        if (widthRatio >= MIN_DIMENSION_RATIO && heightRatio >= MIN_DIMENSION_RATIO) {
+                            documentCorners = pts;
+                            approx2f.release();
+                            contour2f.release();
+                            break;
+                        }
                     }
                 }
                 approx2f.release();

@@ -63,11 +63,13 @@ public class RegexClassifierEngine {
     }
 
     /**
-     * Initializes all rule implementations. Order matters: more specific rules first.
+     * Initializes all rule implementations. Order matters: financial transaction
+     * patterns run before bare NID number patterns so 10/13/17-digit account or
+     * transaction references are never misclassified as National IDs.
      */
     private void initializeRules() {
-        rules.add(new NidRule());
         rules.add(new TransactionRule());
+        rules.add(new NidRule());
         rules.add(new PasswordRule());
         rules.add(new PrescriptionRule());
         rules.add(new StudyNoteRule());
@@ -86,12 +88,23 @@ public class RegexClassifierEngine {
         List<String> collectedTags = new ArrayList<>();
         String derivedTitle = fallbackTitle;
 
-        // Polymorphic rule evaluation
+        // Polymorphic rule evaluation on OCR text
         for (DocumentRule rule : rules) {
             if (rule.matches(ocrText)) {
                 matchedType = rule.getDocType();
                 collectedTags.addAll(rule.extractTags(ocrText));
                 break; // Stop at first strong classification match
+            }
+        }
+
+        // Fallback: evaluate original filename if OCR yielded no specific classification
+        if (DocumentModel.TYPE_OTHER.equals(matchedType) && !fallbackTitle.trim().isEmpty()) {
+            for (DocumentRule rule : rules) {
+                if (rule.matches(fallbackTitle)) {
+                    matchedType = rule.getDocType();
+                    collectedTags.addAll(rule.extractTags(fallbackTitle));
+                    break;
+                }
             }
         }
 
@@ -161,11 +174,26 @@ public class RegexClassifierEngine {
     }
 
     /**
-     * Transaction & Receipt Rule: Matches TrxID, Mobile Banking (bKash/Nagad), Invoices.
+     * Transaction & Financial Rule: Matches TrxID, Mobile Banking (bKash/Nagad/Rocket/Upay),
+     * transfer confirmation screens, account balances, currency amounts, and Invoices/Receipts.
      */
     private static class TransactionRule implements DocumentRule {
         private static final Pattern TRX_KEYWORD_PATTERN = Pattern.compile(
-                "(?i)\\b(trxid|transaction\\s*id|bkash|nagad|rocket|upay|payment|invoice|bill\\s*to|total\\s*amount|subtotal|receipt)\\b"
+                "(?i)\\b(trxid|txnid|transaction\\s*id|bkash|nagad|rocket|upay|cellfin|nexuspay|" +
+                "pathao\\s*pay|paypal|paytm|gpay|google\\s*pay|apple\\s*pay|zelle|venmo|cash\\s*app|" +
+                "stripe|mastercard|visa|dbbl|citytouch|" +
+                "send\\s*money|cash\\s*out|cash\\s*in|add\\s*money|mobile\\s*recharge|pay\\s*bill|" +
+                "pay\\s*later|request\\s*money|fund\\s*transfer|bank\\s*transfer|wire\\s*transfer|" +
+                "money\\s*transfer|priyo\\s*number|my\\s*bkash|my\\s*nagad|" +
+                "tap\\s*for\\s*balan|new\\s*balance|available\\s*balance|current\\s*balance|account\\s*balance|" +
+                "payment|invoice|bill\\s*to|total\\s*amount|subtotal|grand\\s*total|net\\s*payable|receipt|" +
+                "bank\\s*account|savings\\s*account|bank\\s*statement|deposit|withdraw|withdrawal|" +
+                "remittance|iban|swift|bdt|taka|usd|eur|gbp|inr)\\b"
+        );
+        private static final Pattern CURRENCY_AMOUNT_PATTERN = Pattern.compile(
+                "(?i)(?:৳|\\$|€|£|₹)\\s*\\d[\\d,]*(?:\\.\\d{1,2})?|" +
+                "\\b\\d[\\d,]*(?:\\.\\d{1,2})?\\s*(?:tk|bdt|taka)\\.?\\b|" +
+                "\\b(?:tk|bdt)\\.?\\s*\\d[\\d,]*(?:\\.\\d{1,2})?\\b"
         );
         private static final Pattern TRX_ID_VALUE_PATTERN = Pattern.compile(
                 "(?i)(?:trxid|txnid|transaction\\s*id)[\\s:#]*([A-Z0-9]{8,14})\\b"
@@ -173,7 +201,8 @@ public class RegexClassifierEngine {
 
         @Override
         public boolean matches(@NonNull String text) {
-            return TRX_KEYWORD_PATTERN.matcher(text).find();
+            return TRX_KEYWORD_PATTERN.matcher(text).find()
+                    || CURRENCY_AMOUNT_PATTERN.matcher(text).find();
         }
 
         @NonNull
@@ -317,14 +346,19 @@ public class RegexClassifierEngine {
             case DocumentModel.TYPE_RECEIPT: {
                 String merchant = extractMerchantOrProvider(ocrText);
                 String trxId = findTagWithPrefix(collectedTags, "TrxID:");
+                String action = extractFinancialAction(ocrText);
                 if (merchant != null && trxId != null) {
                     return merchant + " Receipt (" + trxId.replace("TrxID:", "Trx ") + ")";
+                } else if (merchant != null && action != null) {
+                    return merchant + " " + action;
                 } else if (merchant != null) {
                     return merchant + " Receipt";
                 } else if (trxId != null) {
                     return "Payment (" + trxId.replace("TrxID:", "Trx ") + ")";
+                } else if (action != null) {
+                    return action + " Record";
                 }
-                return "Payment Receipt";
+                return "Financial Receipt";
             }
             case DocumentModel.TYPE_NID: {
                 String idTag = findTagWithPrefix(collectedTags, "ID:");
@@ -394,10 +428,12 @@ public class RegexClassifierEngine {
     private static String extractMerchantOrProvider(String text) {
         if (text == null) return null;
         String lower = text.toLowerCase(Locale.ROOT);
-        if (lower.contains("bkash")) return "bKash";
+        if (lower.contains("bkash") || lower.contains("priyo number") || lower.contains("my bkash")) return "bKash";
         if (lower.contains("nagad")) return "Nagad";
         if (lower.contains("rocket")) return "Rocket";
         if (lower.contains("upay")) return "Upay";
+        if (lower.contains("cellfin")) return "CellFin";
+        if (lower.contains("nexuspay")) return "NexusPay";
         if (lower.contains("amazon")) return "Amazon";
         if (lower.contains("google play") || lower.contains("google *")) return "Google Play";
         if (lower.contains("apple.com") || lower.contains("itunes") || lower.contains("app store")) return "Apple";
@@ -408,6 +444,20 @@ public class RegexClassifierEngine {
         if (lower.contains("netflix")) return "Netflix";
         if (lower.contains("spotify")) return "Spotify";
         if (lower.contains("paypal")) return "PayPal";
+        return null;
+    }
+
+    private static String extractFinancialAction(String text) {
+        if (text == null) return null;
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.contains("send money")) return "Send Money";
+        if (lower.contains("cash out")) return "Cash Out";
+        if (lower.contains("cash in")) return "Cash In";
+        if (lower.contains("add money")) return "Add Money";
+        if (lower.contains("mobile recharge")) return "Mobile Recharge";
+        if (lower.contains("pay bill")) return "Bill Payment";
+        if (lower.contains("tap for balan")) return "Account Dashboard";
+        if (lower.contains("new balance") || lower.contains("available balance")) return "Balance Summary";
         return null;
     }
 

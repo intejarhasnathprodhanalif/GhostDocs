@@ -14,6 +14,7 @@ import androidx.annotation.Nullable;
 import com.ghostdocs.vault.util.OpenCvCropper;
 
 import java.io.IOException;
+import java.util.Locale;
 
 /**
  * CropTask — Background Task for OpenCV Document Cropping & De-skewing
@@ -34,6 +35,7 @@ public class CropTask extends BaseVaultTask<Bitmap> {
 
     private final Uri imageUri;
     private final Bitmap sourceBitmap;
+    private final String displayName;
 
     /**
      * Constructor when processing from a content URI.
@@ -41,9 +43,21 @@ public class CropTask extends BaseVaultTask<Bitmap> {
     public CropTask(@NonNull Context context,
                     @NonNull Uri imageUri,
                     @Nullable TaskCallback<Bitmap> callback) {
+        this(context, imageUri, null, callback);
+    }
+
+    /**
+     * Constructor when processing from a content URI with a known display name.
+     * Digital screenshots bypass perspective cropping so UI cards/banners are not cut.
+     */
+    public CropTask(@NonNull Context context,
+                    @NonNull Uri imageUri,
+                    @Nullable String displayName,
+                    @Nullable TaskCallback<Bitmap> callback) {
         super(context, callback);
         this.imageUri = imageUri;
         this.sourceBitmap = null;
+        this.displayName = displayName;
     }
 
     /**
@@ -55,6 +69,7 @@ public class CropTask extends BaseVaultTask<Bitmap> {
         super(context, callback);
         this.imageUri = null;
         this.sourceBitmap = bitmap;
+        this.displayName = null;
     }
 
     @Override
@@ -70,8 +85,30 @@ public class CropTask extends BaseVaultTask<Bitmap> {
             throw new IOException("Failed to load source bitmap for OpenCV crop.");
         }
 
-        // Apply OpenCV Canny + Contour + Perspective Transform
+        // Digital phone screenshots are already flat 2D captures — do not crop UI banners/cards
+        if (isScreenCapture(displayName, imageUri)) {
+            Log.d(TAG, "Screen capture detected (" + displayName + "). Preserving full uncropped image.");
+            return inputBitmap;
+        }
+
+        // Apply OpenCV Canny + Contour + Perspective Transform for physical document photos
         return OpenCvCropper.cropAndFlatten(inputBitmap);
+    }
+
+    private static boolean isScreenCapture(@Nullable String displayName, @Nullable Uri uri) {
+        if (displayName != null) {
+            String lower = displayName.toLowerCase(Locale.ROOT);
+            if (lower.startsWith("screenshot") || lower.startsWith("screen_") || lower.startsWith("screencap")) {
+                return true;
+            }
+        }
+        if (uri != null) {
+            String path = uri.toString().toLowerCase(Locale.ROOT);
+            if (path.contains("screenshots")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

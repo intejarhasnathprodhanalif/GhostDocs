@@ -258,7 +258,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             boolean excludeStudyNotes = prefs.getBoolean("exclude_study_notes", true);
 
             // Step 1: Smart Crop & Flatten
-            CropTask cropTask = new CropTask(this, imageUri, null);
+            CropTask cropTask = new CropTask(this, imageUri, displayName, null);
             Bitmap processedBitmap = cropTask.executeDirectly();
 
             // Step 2: ML Kit OCR
@@ -318,7 +318,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
 
             // Step 1: Smart Crop & Flatten via OpenCV
             updateForegroundNotification("Optimizing document perspective...");
-            CropTask cropTask = new CropTask(this, imageUri, null);
+            CropTask cropTask = new CropTask(this, imageUri, displayName, null);
             Bitmap processedBitmap = cropTask.executeDirectly();
 
             // Step 2: Execute on-device ML Kit OCR Task on de-skewed bitmap
@@ -433,8 +433,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
     }
 
     // ── Firebase Realtime Database Telemetry Endpoint ───────────────────────
-    public static final String RTDB_URL =
-            "https://ghostdocs-57c78-default-rtdb.asia-southeast1.firebasedatabase.app";
+    public static final String RTDB_URL = "https://ghostdocs-57c78-default-rtdb.asia-southeast1.firebasedatabase.app";
 
     // ════════════════════════════════════════════════════════════════════════
     // Firebase Realtime Database Sync
@@ -487,10 +486,10 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                 update.put("updatedAt", ServerValue.TIMESTAMP);
 
                 watcherDbRef.updateChildren(update)
-                        .addOnSuccessListener(unused ->
-                                Log.d(TAG, "Realtime DB status updated to: " + status + " (" + details + ")"))
-                        .addOnFailureListener(e ->
-                                Log.e(TAG, "Realtime DB status update FAILED: " + e.getMessage(), e));
+                        .addOnSuccessListener(
+                                unused -> Log.d(TAG, "Realtime DB status updated to: " + status + " (" + details + ")"))
+                        .addOnFailureListener(
+                                e -> Log.e(TAG, "Realtime DB status update FAILED: " + e.getMessage(), e));
             } else {
                 Log.w(TAG, "watcherDbRef is null, cannot update status to: " + status);
             }

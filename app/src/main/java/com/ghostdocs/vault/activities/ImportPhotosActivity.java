@@ -915,7 +915,7 @@ public class ImportPhotosActivity extends AppCompatActivity
 
                     } else {
                         // ── IMAGE PIPELINE ──
-                        CropTask cropTask = new CropTask(this, item.getUri(), null);
+                        CropTask cropTask = new CropTask(this, item.getUri(), item.getDisplayName(), null);
                         Bitmap processedBitmap = cropTask.executeDirectly();
 
                         OcrTask ocrTask = new OcrTask(this, processedBitmap, item.getDisplayName(), null);
