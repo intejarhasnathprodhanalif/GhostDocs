@@ -13,7 +13,10 @@ import android.view.animation.OvershootInterpolator;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.biometric.BiometricPrompt;
+import androidx.lifecycle.Lifecycle;
 
 import com.ghostdocs.vault.R;
 import com.ghostdocs.vault.security.BiometricHelper;
@@ -34,7 +37,7 @@ import com.google.firebase.auth.FirebaseUser;
  *   <li>If NOT authenticated → route to {@link LoginActivity}.</li>
  *   <li>If authenticated → invoke {@link BiometricHelper#authenticate()}.</li>
  *   <li>On biometric SUCCESS → route to {@link VaultActivity} and {@code finish()}.</li>
- *   <li>On biometric ERROR/CANCEL → show error; stay on splash (user can retry).</li>
+ *   <li>On biometric BACK/CANCEL → display requirement message and keep prompt active.</li>
  * </ol>
  *
  * <p><b>OOP Design:</b>
@@ -50,6 +53,7 @@ public class LaunchActivity extends AppCompatActivity {
 
     private static final String TAG = "GhostDocs.Launch";
     private static final int SPLASH_DELAY_MS = 1200;
+    private static final int REPROMPT_DELAY_MS = 150;
 
     // ── Views ────────────────────────────────────────────────────────────────
     private ProgressBar progressIndicator;
@@ -57,6 +61,13 @@ public class LaunchActivity extends AppCompatActivity {
     // ── Auth & Biometric ─────────────────────────────────────────────────────
     private FirebaseAuth firebaseAuth;
     private BiometricHelper biometricHelper;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    private boolean authGateTriggered = false;
+    private boolean isAuthenticating = false;
+    private boolean isAuthenticated = false;
+    private boolean isForeground = false;
+    private Toast activeToast;
 
     // ════════════════════════════════════════════════════════════════════════
     // Lifecycle
@@ -72,6 +83,17 @@ public class LaunchActivity extends AppCompatActivity {
 
         // Initialise BiometricHelper with this Activity and our inline callback
         biometricHelper = new BiometricHelper(this, buildBiometricCallback());
+
+        // Intercept system back button on LaunchActivity so the auth gate cannot be bypassed or dismissed
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                showAuthToast(getString(R.string.error_auth_required));
+                if (authGateTriggered && !isAuthenticated && !isAuthenticating) {
+                    triggerBiometricGate();
+                }
+            }
+        });
 
         // Dynamic launch entrance animations
         View icon = findViewById(R.id.tv_ghost_icon);
@@ -114,10 +136,36 @@ public class LaunchActivity extends AppCompatActivity {
         }
 
         // Brief splash delay, then evaluate auth state
-        new Handler(Looper.getMainLooper()).postDelayed(
-                this::checkAuthAndRoute,
-                SPLASH_DELAY_MS
-        );
+        mainHandler.postDelayed(this::checkAuthAndRoute, SPLASH_DELAY_MS);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        isForeground = true;
+        // Re-present biometric gate if returning to foreground while still locked
+        if (authGateTriggered && !isAuthenticated && !isAuthenticating) {
+            mainHandler.postDelayed(() -> {
+                if (isForeground && !isAuthenticated && !isAuthenticating) {
+                    triggerBiometricGate();
+                }
+            }, REPROMPT_DELAY_MS);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        isForeground = false;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mainHandler.removeCallbacksAndMessages(null);
+        if (activeToast != null) {
+            activeToast.cancel();
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -133,10 +181,13 @@ public class LaunchActivity extends AppCompatActivity {
      * </ul>
      */
     private void checkAuthAndRoute() {
+        if (isFinishing() || isDestroyed()) return;
+
         FirebaseUser currentUser = firebaseAuth.getCurrentUser();
 
         if (currentUser != null) {
             Log.d(TAG, "User authenticated as: " + currentUser.getEmail());
+            authGateTriggered = true;
             triggerBiometricGate();
         } else {
             Log.d(TAG, "No authenticated user. Routing to LoginActivity.");
@@ -150,17 +201,18 @@ public class LaunchActivity extends AppCompatActivity {
      * (the Keystore key is the actual security layer; biometric is a UX gate).
      */
     private void triggerBiometricGate() {
+        if (isFinishing() || isDestroyed() || isAuthenticated || isAuthenticating) return;
+
         progressIndicator.setVisibility(View.GONE);
 
         if (biometricHelper.isBiometricAvailable()) {
+            isAuthenticating = true;
             biometricHelper.authenticate();
         } else {
             // Device has no biometric hardware or no enrolled credentials.
             // Log and fall through — Firebase Auth is still the security gate.
             Log.w(TAG, "Biometric not available. Skipping to vault.");
-            Toast.makeText(this,
-                    getString(R.string.error_biometric_unavailable),
-                    Toast.LENGTH_LONG).show();
+            showAuthToast(getString(R.string.error_biometric_unavailable));
             goToVault();
         }
     }
@@ -172,12 +224,6 @@ public class LaunchActivity extends AppCompatActivity {
     /**
      * Builds the {@link BiometricHelper.BiometricCallback} that reacts to
      * the biometric prompt outcome.
-     *
-     * <p>This anonymous class implementation demonstrates Polymorphism — the
-     * concrete behaviour is resolved at runtime through the
-     * {@link BiometricHelper.BiometricCallback} interface.
-     *
-     * @return the callback instance
      */
     private BiometricHelper.BiometricCallback buildBiometricCallback() {
         return new BiometricHelper.BiometricCallback() {
@@ -185,35 +231,66 @@ public class LaunchActivity extends AppCompatActivity {
             @Override
             public void onBiometricSuccess() {
                 Log.d(TAG, "Biometric gate passed. Entering vault.");
+                isAuthenticating = false;
+                isAuthenticated = true;
+                if (activeToast != null) {
+                    activeToast.cancel();
+                }
                 goToVault();
             }
 
             @Override
             public void onBiometricError(int errorCode, CharSequence errorMessage) {
-                // User cancelled or hit an unrecoverable error
                 Log.w(TAG, "Biometric error [" + errorCode + "]: " + errorMessage);
+                isAuthenticating = false;
+                progressIndicator.setVisibility(View.GONE);
 
-                if (errorCode == androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED
-                        || errorCode == androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
-                    // User deliberately cancelled — stay on splash, let them retry or exit
-                    progressIndicator.setVisibility(View.VISIBLE);
-                    Toast.makeText(LaunchActivity.this,
-                            getString(R.string.error_auth_failed),
-                            Toast.LENGTH_SHORT).show();
+                if (errorCode == BiometricPrompt.ERROR_USER_CANCELED
+                        || errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                    // User tapped Back (<) or attempted to dismiss the prompt.
+                    // Show a clear requirement message and immediately re-open the prompt
+                    // so the authentication gate cannot be dismissed while in the app.
+                    if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) {
+                        showAuthToast(getString(R.string.error_auth_required));
+                        scheduleReprompt();
+                    }
+                } else if (errorCode == BiometricPrompt.ERROR_CANCELED) {
+                    // System canceled (e.g. screen rotation or brief interruption).
+                    // Re-prompt only if still foreground.
+                    scheduleReprompt();
                 } else {
-                    // Unrecoverable hardware/lockout error
-                    Toast.makeText(LaunchActivity.this,
-                            errorMessage, Toast.LENGTH_LONG).show();
+                    // Lockout or unrecoverable hardware error — show system message
+                    showAuthToast(errorMessage != null ? errorMessage.toString()
+                            : getString(R.string.error_auth_failed));
                 }
             }
 
             @Override
             public void onBiometricFailed() {
-                // Wrong fingerprint/face — the prompt handles retries internally;
-                // we just log it here
+                // Wrong fingerprint/face — the prompt handles retries internally
                 Log.w(TAG, "Biometric did not match. Prompt will allow retry.");
             }
         };
+    }
+
+    /**
+     * Re-presents the biometric/PIN authentication prompt after a brief delay
+     * so the OS finishes dismissing the canceled prompt dialog before re-opening.
+     */
+    private void scheduleReprompt() {
+        mainHandler.postDelayed(() -> {
+            if (!isFinishing() && !isDestroyed() && isForeground && !isAuthenticated && !isAuthenticating) {
+                triggerBiometricGate();
+            }
+        }, REPROMPT_DELAY_MS);
+    }
+
+    private void showAuthToast(String message) {
+        if (activeToast != null) {
+            activeToast.cancel();
+        }
+        activeToast = Toast.makeText(LaunchActivity.this, message, Toast.LENGTH_SHORT);
+        activeToast.show();
     }
 
     // ════════════════════════════════════════════════════════════════════════
