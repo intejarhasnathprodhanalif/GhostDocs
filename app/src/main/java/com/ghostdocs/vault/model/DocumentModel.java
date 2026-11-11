@@ -4,6 +4,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -47,7 +48,8 @@ public class DocumentModel {
     public static final String FIELD_DOC_ID        = "docId";
     public static final String FIELD_TITLE         = "title";
     public static final String FIELD_OCR_TEXT      = "ocrText";
-    public static final String FIELD_ENCRYPTED_PATH = "encryptedPath";
+    public static final String FIELD_ENCRYPTED_PATH          = "encryptedPath";
+    public static final String FIELD_ORIGINAL_ENCRYPTED_PATH = "originalEncryptedPath";
     public static final String FIELD_THUMBNAIL_PATH = "thumbnailPath";
     public static final String FIELD_PDF_PATH      = "pdfPath";
     public static final String FIELD_TIMESTAMP     = "timestamp";
@@ -69,6 +71,9 @@ public class DocumentModel {
 
     /** Absolute path to the AES-encrypted file in app-private storage. */
     private String encryptedPath;
+
+    /** Absolute path to the AES-encrypted full uncropped original image (when cropped). */
+    private String originalEncryptedPath;
 
     /** Absolute path to a compressed thumbnail for display in the vault grid. */
     private String thumbnailPath;
@@ -148,7 +153,8 @@ public class DocumentModel {
     public String getDocId()          { return docId; }
     public String getTitle()          { return title; }
     public String getOcrText()        { return ocrText; }
-    public String getEncryptedPath()  { return encryptedPath; }
+    public String getEncryptedPath()          { return encryptedPath; }
+    public String getOriginalEncryptedPath()  { return originalEncryptedPath; }
     public String getThumbnailPath()  { return thumbnailPath; }
     public String getPdfPath()        { return pdfPath; }
     public long   getTimestamp()      { return timestamp; }
@@ -164,7 +170,8 @@ public class DocumentModel {
     public void setDocId(String docId)                  { this.docId = docId; }
     public void setTitle(String title)                  { this.title = title; }
     public void setOcrText(String ocrText)              { this.ocrText = ocrText; }
-    public void setEncryptedPath(String encryptedPath)  { this.encryptedPath = encryptedPath; }
+    public void setEncryptedPath(String encryptedPath)                 { this.encryptedPath = encryptedPath; }
+    public void setOriginalEncryptedPath(String originalEncryptedPath) { this.originalEncryptedPath = originalEncryptedPath; }
     public void setThumbnailPath(String thumbnailPath)  { this.thumbnailPath = thumbnailPath; }
     public void setPdfPath(String pdfPath)              { this.pdfPath = pdfPath; }
     public void setTimestamp(long timestamp)            { this.timestamp = timestamp; }
@@ -203,6 +210,25 @@ public class DocumentModel {
     }
 
     /**
+     * Resolves the encrypted full uncropped original file on disk if this document
+     * was smart-cropped during capture.
+     *
+     * @return existing {@link File} for the uncropped original, or null if not cropped / unavailable.
+     */
+    public File resolveOriginalEncryptedFile() {
+        if (originalEncryptedPath != null && !originalEncryptedPath.isEmpty()) {
+            File f = new File(originalEncryptedPath);
+            if (f.exists()) return f;
+        }
+        if (encryptedPath != null && encryptedPath.endsWith(".enc")) {
+            String fallback = encryptedPath.substring(0, encryptedPath.length() - 4) + "_orig.enc";
+            File f = new File(fallback);
+            if (f.exists()) return f;
+        }
+        return null;
+    }
+
+    /**
      * Serialises this model to a {@link JSONObject} using the native
      * {@code org.json} API (no third-party JSON library).
      *
@@ -213,10 +239,11 @@ public class DocumentModel {
     public JSONObject toJson() {
         JSONObject json = new JSONObject();
         try {
-            json.put(FIELD_DOC_ID,         docId != null ? docId : "");
-            json.put(FIELD_TITLE,          title != null ? title : "");
-            json.put(FIELD_OCR_TEXT,       ocrText != null ? ocrText : "");
-            json.put(FIELD_ENCRYPTED_PATH, encryptedPath != null ? encryptedPath : "");
+            json.put(FIELD_DOC_ID,                  docId != null ? docId : "");
+            json.put(FIELD_TITLE,                   title != null ? title : "");
+            json.put(FIELD_OCR_TEXT,                ocrText != null ? ocrText : "");
+            json.put(FIELD_ENCRYPTED_PATH,          encryptedPath != null ? encryptedPath : "");
+            json.put(FIELD_ORIGINAL_ENCRYPTED_PATH, originalEncryptedPath != null ? originalEncryptedPath : "");
             json.put(FIELD_THUMBNAIL_PATH, thumbnailPath != null ? thumbnailPath : "");
             json.put(FIELD_PDF_PATH,       pdfPath != null ? pdfPath : "");
             json.put(FIELD_TIMESTAMP,      timestamp);

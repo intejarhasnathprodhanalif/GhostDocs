@@ -786,6 +786,37 @@ public class VaultActivity extends AppCompatActivity
     // JPG Export & Gallery Save
     // ════════════════════════════════════════════════════════════════════════
 
+    private interface OnImageVersionChosenListener {
+        void onChosen(@NonNull File targetEncryptedFile);
+    }
+
+    /**
+     * If this document was smart-cropped and a full uncropped original backup exists,
+     * lets the user choose between the Full Original and Smart-Cropped version.
+     * Otherwise immediately proceeds with the single stored file.
+     */
+    private void resolveImageVersionAndRun(@NonNull DocumentModel document,
+                                           @NonNull File croppedEncFile,
+                                           @NonNull OnImageVersionChosenListener listener) {
+        File origEncFile = document.resolveOriginalEncryptedFile();
+        if (origEncFile == null) {
+            listener.onChosen(croppedEncFile);
+            return;
+        }
+
+        String[] versions = {
+                "Full Original Picture (Uncropped)",
+                "Smart-Cropped Document"
+        };
+        new AlertDialog.Builder(this)
+                .setTitle("Choose Image Version")
+                .setItems(versions, (dialog, which) -> {
+                    listener.onChosen(which == 0 ? origEncFile : croppedEncFile);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
     /**
      * Exports the document as a high-resolution JPG image, allowing the user to share it
      * via Quick Share/WhatsApp/Bluetooth or save/move it directly to the device Gallery.
@@ -805,8 +836,10 @@ public class VaultActivity extends AppCompatActivity
         new AlertDialog.Builder(this)
                 .setTitle("Move to Gallery / Share JPG")
                 .setMessage("Move \"" + document.getTitle() + "\" to device gallery or share via apps:")
-                .setPositiveButton("Move to Gallery", (dialog, which) -> saveJpgToGallery(document, encFile))
-                .setNeutralButton("Share JPG", (dialog, which) -> shareJpgImage(document, encFile))
+                .setPositiveButton("Move to Gallery", (dialog, which) ->
+                        resolveImageVersionAndRun(document, encFile, targetFile -> saveJpgToGallery(document, targetFile)))
+                .setNeutralButton("Share JPG", (dialog, which) ->
+                        resolveImageVersionAndRun(document, encFile, targetFile -> shareJpgImage(document, targetFile)))
                 .setNegativeButton("Cancel", null)
                 .show();
     }
@@ -831,6 +864,10 @@ public class VaultActivity extends AppCompatActivity
         updateCategoryCounts();
 
         // 2. Clean up any lingering files if paths were partially present
+        File origEncFile = document.resolveOriginalEncryptedFile();
+        if (origEncFile != null && origEncFile.exists()) {
+            origEncFile.delete();
+        }
         if (document.getEncryptedPath() != null && !document.getEncryptedPath().isEmpty()) {
             File encFile = new File(document.getEncryptedPath());
             if (encFile.exists()) {
@@ -1070,7 +1107,11 @@ public class VaultActivity extends AppCompatActivity
             return;
         }
 
-        // Clean up encrypted file on device
+        // Clean up encrypted file(s) on device
+        File origEncFile = document.resolveOriginalEncryptedFile();
+        if (origEncFile != null && origEncFile.exists()) {
+            origEncFile.delete();
+        }
         if (document.getEncryptedPath() != null && !document.getEncryptedPath().isEmpty()) {
             java.io.File encFile = new java.io.File(document.getEncryptedPath());
             if (encFile.exists()) {

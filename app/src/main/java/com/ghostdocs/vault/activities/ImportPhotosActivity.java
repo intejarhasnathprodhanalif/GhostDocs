@@ -734,6 +734,10 @@ public class ImportPhotosActivity extends AppCompatActivity
             try {
                 File enc = new File(encryptedPath);
                 if (enc.exists()) enc.delete();
+                if (encryptedPath.endsWith(".enc")) {
+                    File origEnc = new File(encryptedPath.substring(0, encryptedPath.length() - 4) + "_orig.enc");
+                    if (origEnc.exists()) origEnc.delete();
+                }
             } catch (Exception ignored) {}
         }
         if (pdfPath != null && !pdfPath.isEmpty()) {
@@ -853,6 +857,7 @@ public class ImportPhotosActivity extends AppCompatActivity
                 List<String> tags;
                 String fullOcrText;
                 String encryptedPath = null;
+                String originalEncryptedPath = null;
                 String pdfPath = "";
                 String docId = UUID.randomUUID().toString();
 
@@ -916,7 +921,9 @@ public class ImportPhotosActivity extends AppCompatActivity
                     } else {
                         // ── IMAGE PIPELINE ──
                         CropTask cropTask = new CropTask(this, item.getUri(), item.getDisplayName(), null);
-                        Bitmap processedBitmap = cropTask.executeDirectly();
+                        CropTask.CropResult cropResult = cropTask.executeWithOriginal();
+                        Bitmap processedBitmap = cropResult.getProcessedBitmap();
+                        Bitmap originalBitmap = cropResult.getOriginalBitmap();
 
                         OcrTask ocrTask = new OcrTask(this, processedBitmap, item.getDisplayName(), null);
                         OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
@@ -935,13 +942,21 @@ public class ImportPhotosActivity extends AppCompatActivity
                             if (processedBitmap != null && !processedBitmap.isRecycled()) {
                                 processedBitmap.recycle();
                             }
+                            if (originalBitmap != null && !originalBitmap.isRecycled()) {
+                                originalBitmap.recycle();
+                            }
                             break;
                         }
 
-                        // Hardware AES-256-GCM Encryption (Do not delete original yet — wait for Firestore sync)
-                        EncryptTask encryptTask = new EncryptTask(this, processedBitmap, item.getUri(), docId, false, null);
+                        // Hardware AES-256-GCM Encryption (both cropped + uncropped original if cropped)
+                        EncryptTask encryptTask = new EncryptTask(this, processedBitmap, originalBitmap, item.getUri(), docId, false, null);
                         EncryptTask.EncryptResult encryptResult = encryptTask.executeDirectly();
                         encryptedPath = encryptResult.getEncryptedPath();
+                        originalEncryptedPath = encryptResult.getOriginalEncryptedPath();
+
+                        if (originalBitmap != null && !originalBitmap.isRecycled()) {
+                            originalBitmap.recycle();
+                        }
 
                         // Searchable PDF Generation
                         try {
@@ -990,6 +1005,7 @@ public class ImportPhotosActivity extends AppCompatActivity
                             docType,
                             currentUser.getUid()
                     );
+                    docModel.setOriginalEncryptedPath(originalEncryptedPath);
 
                     Tasks.await(FirebaseFirestore.getInstance()
                             .collection("users")

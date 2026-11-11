@@ -33,6 +33,28 @@ public class CropTask extends BaseVaultTask<Bitmap> {
 
     private static final String TAG = "GhostDocs.CropTask";
 
+    /**
+     * Encapsulates both the cropped/flattened bitmap and the uncropped original bitmap
+     * when OpenCV cropping was applied.
+     */
+    public static class CropResult {
+        private final Bitmap processedBitmap;
+        @Nullable private final Bitmap originalBitmap;
+        private final boolean wasCropped;
+
+        public CropResult(@NonNull Bitmap processedBitmap,
+                          @Nullable Bitmap originalBitmap,
+                          boolean wasCropped) {
+            this.processedBitmap = processedBitmap;
+            this.originalBitmap = originalBitmap;
+            this.wasCropped = wasCropped;
+        }
+
+        @NonNull public Bitmap getProcessedBitmap() { return processedBitmap; }
+        @Nullable public Bitmap getOriginalBitmap() { return originalBitmap; }
+        public boolean wasCropped() { return wasCropped; }
+    }
+
     private final Uri imageUri;
     private final Bitmap sourceBitmap;
     private final String displayName;
@@ -74,6 +96,15 @@ public class CropTask extends BaseVaultTask<Bitmap> {
 
     @Override
     public Bitmap doInBackground() throws Exception {
+        return executeWithOriginal().getProcessedBitmap();
+    }
+
+    /**
+     * Executes smart cropping on the current worker thread and returns both the
+     * processed bitmap and the uncropped original bitmap (when cropping occurred).
+     */
+    @NonNull
+    public CropResult executeWithOriginal() throws Exception {
         Log.d(TAG, "Starting OpenCV CropTask on background worker thread...");
 
         Bitmap inputBitmap = sourceBitmap;
@@ -88,11 +119,13 @@ public class CropTask extends BaseVaultTask<Bitmap> {
         // Digital phone screenshots are already flat 2D captures — do not crop UI banners/cards
         if (isScreenCapture(displayName, imageUri)) {
             Log.d(TAG, "Screen capture detected (" + displayName + "). Preserving full uncropped image.");
-            return inputBitmap;
+            return new CropResult(inputBitmap, null, false);
         }
 
         // Apply OpenCV Canny + Contour + Perspective Transform for physical document photos
-        return OpenCvCropper.cropAndFlatten(inputBitmap);
+        Bitmap outputBitmap = OpenCvCropper.cropAndFlatten(inputBitmap);
+        boolean wasCropped = (outputBitmap != inputBitmap);
+        return new CropResult(outputBitmap, wasCropped ? inputBitmap : null, wasCropped);
     }
 
     private static boolean isScreenCapture(@Nullable String displayName, @Nullable Uri uri) {

@@ -316,10 +316,12 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
         try {
             Log.d(TAG, "Background processing started for: " + displayName);
 
-            // Step 1: Smart Crop & Flatten via OpenCV
+            // Step 1: Smart Crop & Flatten via OpenCV (retaining uncropped original if cropped)
             updateForegroundNotification("Optimizing document perspective...");
             CropTask cropTask = new CropTask(this, imageUri, displayName, null);
-            Bitmap processedBitmap = cropTask.executeDirectly();
+            CropTask.CropResult cropResult = cropTask.executeWithOriginal();
+            Bitmap processedBitmap = cropResult.getProcessedBitmap();
+            Bitmap originalBitmap = cropResult.getOriginalBitmap();
 
             // Step 2: Execute on-device ML Kit OCR Task on de-skewed bitmap
             updateForegroundNotification("Reading document text...");
@@ -346,6 +348,9 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                 if (processedBitmap != null && !processedBitmap.isRecycled()) {
                     processedBitmap.recycle();
                 }
+                if (originalBitmap != null && !originalBitmap.isRecycled()) {
+                    originalBitmap.recycle();
+                }
                 return;
             }
 
@@ -354,8 +359,12 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             String docId = UUID.randomUUID().toString();
             boolean autoDeleteOriginal = prefs.getBoolean("auto_delete_original", true);
 
-            EncryptTask encryptTask = new EncryptTask(this, processedBitmap, imageUri, docId, autoDeleteOriginal, null);
+            EncryptTask encryptTask = new EncryptTask(this, processedBitmap, originalBitmap, imageUri, docId, autoDeleteOriginal, null);
             EncryptTask.EncryptResult encryptResult = encryptTask.executeDirectly();
+
+            if (originalBitmap != null && !originalBitmap.isRecycled()) {
+                originalBitmap.recycle();
+            }
 
             Log.i(TAG, "Encryption complete: " + encryptResult.getEncryptedPath()
                     + " | Original deleted: " + encryptResult.isOriginalDeleted());
@@ -396,6 +405,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                         tags,
                         docType,
                         currentUser.getUid());
+                docModel.setOriginalEncryptedPath(encryptResult.getOriginalEncryptedPath());
 
                 FirebaseFirestore.getInstance()
                         .collection("users")
