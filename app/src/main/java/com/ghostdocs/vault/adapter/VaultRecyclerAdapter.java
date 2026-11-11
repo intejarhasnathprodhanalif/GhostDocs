@@ -226,7 +226,7 @@ public class VaultRecyclerAdapter
                     tvDocIcon.setText("PDF");
                 } else if (doc.getDocType() != null) {
                     switch (doc.getDocType()) {
-                        case DocumentModel.TYPE_NID:          tvDocIcon.setText("NID"); break;
+                        case DocumentModel.TYPE_NID:          tvDocIcon.setText("ID"); break;
                         case DocumentModel.TYPE_RECEIPT:      tvDocIcon.setText("FIN"); break;
                         case DocumentModel.TYPE_PRESCRIPTION: tvDocIcon.setText("MED"); break;
                         case DocumentModel.TYPE_PASSWORD:     tvDocIcon.setText("KEY"); break;

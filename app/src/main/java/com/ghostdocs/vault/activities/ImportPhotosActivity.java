@@ -331,18 +331,22 @@ public class ImportPhotosActivity extends AppCompatActivity
         if (text == null) return null;
         String lower = text.toLowerCase(Locale.ROOT);
 
+        if (lower.contains("library") || lower.contains("student") || lower.contains("nid")
+                || lower.contains("passport") || lower.contains("identity") || lower.contains("license")
+                || lower.contains("admit") || lower.contains("govt") || lower.contains("voter")
+                || lower.contains("id_card") || lower.contains("id-card") || lower.contains("id card")) {
+            return "IDENTITY";
+        }
         if (lower.contains("bkash") || lower.contains("nagad") || lower.contains("rocket")
                 || lower.contains("trx") || lower.contains("bank") || lower.contains("statement")
-                || lower.contains("salary") || lower.contains("transaction") || lower.contains("card")) {
+                || lower.contains("salary") || lower.contains("transaction")
+                || lower.contains("credit card") || lower.contains("debit card")
+                || lower.contains("atm") || lower.contains("mastercard") || lower.contains("visa")) {
             return "FINANCIAL";
         }
         if (lower.contains("receipt") || lower.contains("invoice") || lower.contains("bill")
                 || lower.contains("voucher") || lower.contains("slip") || lower.contains("memo")) {
             return "RECEIPT";
-        }
-        if (lower.contains("nid") || lower.contains("passport") || lower.contains("identity")
-                || lower.contains("license") || lower.contains("govt") || lower.contains("voter")) {
-            return "IDENTITY";
         }
         if (lower.contains("prescription") || lower.contains("medical") || lower.contains("clinic")
                 || lower.contains("hospital") || lower.contains("doctor") || lower.contains("rx")) {

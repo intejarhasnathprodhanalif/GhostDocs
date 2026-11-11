@@ -540,6 +540,7 @@ public class VaultActivity extends AppCompatActivity
                         "Move to Gallery (Export JPG)",
                         "Open / Export PDF",
                         "Share QR (Air-Gapped)",
+                        "Change Category",
                         "Rename Document",
                         "Delete from Vault"
                 }, (dialog, which) -> {
@@ -547,8 +548,9 @@ public class VaultActivity extends AppCompatActivity
                         case 0: exportOrShareJpg(document); break;
                         case 1: exportOrSharePdf(document); break;
                         case 2: showQrShareDialog(document); break;
-                        case 3: promptRenameDocument(document); break;
-                        case 4: confirmDeleteDocument(document); break;
+                        case 3: promptChangeCategory(document); break;
+                        case 4: promptRenameDocument(document); break;
+                        case 5: confirmDeleteDocument(document); break;
                     }
                 })
                 .show();
@@ -625,6 +627,92 @@ public class VaultActivity extends AppCompatActivity
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to rename document", e);
                     Toast.makeText(this, "Failed to rename: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    /**
+     * Prompts the user to move a secured document to a different vault category section.
+     */
+    private void promptChangeCategory(@NonNull DocumentModel document) {
+        final String[] labels = {
+                "Financial",
+                "Identity (ID)",
+                "Medical",
+                "Passwords",
+                "Notes",
+                "General"
+        };
+        final String[] types = {
+                DocumentModel.TYPE_RECEIPT,
+                DocumentModel.TYPE_NID,
+                DocumentModel.TYPE_PRESCRIPTION,
+                DocumentModel.TYPE_PASSWORD,
+                DocumentModel.TYPE_STUDY_NOTE,
+                DocumentModel.TYPE_OTHER
+        };
+
+        int currentIdx = 5;
+        String currentType = document.getDocType();
+        for (int i = 0; i < types.length; i++) {
+            if (types[i].equals(currentType)) {
+                currentIdx = i;
+                break;
+            }
+        }
+
+        final int[] selectedIndex = {currentIdx};
+        new AlertDialog.Builder(this)
+                .setTitle("Move to Category")
+                .setSingleChoiceItems(labels, currentIdx, (dialog, which) -> selectedIndex[0] = which)
+                .setPositiveButton("Move", (dialog, which) -> {
+                    int idx = selectedIndex[0];
+                    String newType = types[idx];
+                    if (newType.equals(document.getDocType())) {
+                        return;
+                    }
+                    updateDocumentCategory(document, newType, labels[idx]);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    /**
+     * Updates the document's category in Cloud Firestore and refreshes vault sections/counts.
+     */
+    private void updateDocumentCategory(@NonNull DocumentModel document,
+                                        @NonNull String newDocType,
+                                        @NonNull String displayLabel) {
+        FirebaseUser user = firebaseAuth.getCurrentUser();
+        if (user == null || document.getDocId() == null) {
+            Toast.makeText(this, "Unable to move: document not found", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (!NetworkHelper.isOnline(this)) {
+            NetworkHelper.showNetworkInterruptionDialog(
+                    this,
+                    NetworkHelper.getInterruptionScenario(this),
+                    "change this document's category in the cloud vault",
+                    null
+            );
+            return;
+        }
+
+        firestore.collection("users")
+                .document(user.getUid())
+                .collection("documents")
+                .document(document.getDocId())
+                .update(DocumentModel.FIELD_DOC_TYPE, newDocType)
+                .addOnSuccessListener(aVoid -> {
+                    document.setDocType(newDocType);
+                    updateCategoryCounts();
+                    applyFilters();
+                    Toast.makeText(this, "Moved to " + displayLabel, Toast.LENGTH_SHORT).show();
+                    Log.d(TAG, "Document " + document.getDocId() + " moved to " + newDocType);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to update document category", e);
+                    Toast.makeText(this, "Failed to move: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 

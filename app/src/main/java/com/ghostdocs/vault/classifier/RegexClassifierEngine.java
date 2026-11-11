@@ -63,15 +63,20 @@ public class RegexClassifierEngine {
     }
 
     /**
-     * Initializes all rule implementations. Order matters: financial transaction
-     * patterns run before bare NID number patterns so 10/13/17-digit account or
-     * transaction references are never misclassified as National IDs.
+     * Initializes all rule implementations in priority order:
+     * 1. Explicit identity cards (NID, Library Card, Student ID, Passport, Driving License)
+     * 2. Financial transactions & receipts (ahead of generic ID numbers to prevent account-number collisions)
+     * 3. Passwords & credentials
+     * 4. Medical prescriptions & reports
+     * 5. Generic/fallback identity indicators (labeled ID fields, DOB/Validity, 10/13/17-digit numbers)
+     * 6. Study & lecture notes
      */
     private void initializeRules() {
+        rules.add(new ExplicitIdentityRule());
         rules.add(new TransactionRule());
-        rules.add(new NidRule());
         rules.add(new PasswordRule());
         rules.add(new PrescriptionRule());
+        rules.add(new IdentityFallbackRule());
         rules.add(new StudyNoteRule());
     }
 
@@ -99,10 +104,11 @@ public class RegexClassifierEngine {
 
         // Fallback: evaluate original filename if OCR yielded no specific classification
         if (DocumentModel.TYPE_OTHER.equals(matchedType) && !fallbackTitle.trim().isEmpty()) {
+            String normalizedTitle = fallbackTitle.replace('_', ' ').replace('-', ' ');
             for (DocumentRule rule : rules) {
-                if (rule.matches(fallbackTitle)) {
+                if (rule.matches(normalizedTitle)) {
                     matchedType = rule.getDocType();
-                    collectedTags.addAll(rule.extractTags(fallbackTitle));
+                    collectedTags.addAll(rule.extractTags(normalizedTitle));
                     break;
                 }
             }
@@ -138,19 +144,21 @@ public class RegexClassifierEngine {
     // ════════════════════════════════════════════════════════════════════════
 
     /**
-     * National ID Rule: Matches NID numbers, keywords, and identity documents.
+     * Explicit Identity Rule: Matches unambiguous ID cards and official identity documents
+     * (National ID, Library Card, Student ID, Employee ID, Passport, Driving License, Admit Card).
      */
-    private static class NidRule implements DocumentRule {
-        private static final Pattern KEYWORD_PATTERN = Pattern.compile(
-                "(?i)\\b(national\\s*id|nid|identity\\s*card|govt|republic|date\\s*of\\s*birth|dob)\\b"
-        );
-        private static final Pattern NID_NUMBER_PATTERN = Pattern.compile(
-                "\\b(\\d{10}|\\d{13}|\\d{17})\\b"
+    private static class ExplicitIdentityRule implements DocumentRule {
+        private static final Pattern EXPLICIT_ID_PATTERN = Pattern.compile(
+                "(?i)\\b(national\\s*id|nid|identity\\s*card|id\\s*card|smart\\s*card|" +
+                "library\\s*card|student\\s*id|student\\s*card|employee\\s*id|staff\\s*id|" +
+                "faculty\\s*id|member\\s*card|membership\\s*card|voter\\s*id|passport|" +
+                "driving\\s*licen[cs]e|driver'?s?\\s*licen[cs]e|birth\\s*certificate|" +
+                "admit\\s*card|registration\\s*card|hall\\s*ticket)\\b"
         );
 
         @Override
         public boolean matches(@NonNull String text) {
-            return KEYWORD_PATTERN.matcher(text).find() || NID_NUMBER_PATTERN.matcher(text).find();
+            return EXPLICIT_ID_PATTERN.matcher(text).find();
         }
 
         @NonNull
@@ -162,15 +170,83 @@ public class RegexClassifierEngine {
         @NonNull
         @Override
         public List<String> extractTags(@NonNull String text) {
-            List<String> tags = new ArrayList<>();
-            tags.add("NID");
+            return extractIdentityTags(text);
+        }
+    }
 
-            Matcher matcher = NID_NUMBER_PATTERN.matcher(text);
-            if (matcher.find()) {
-                tags.add("ID:" + matcher.group(1));
-            }
+    /**
+     * Fallback Identity Rule: Matches generic ID card markers (labeled ID fields,
+     * Govt/Republic headers, Date of Birth, Validity + Name/Blood/Student, or 10/13/17-digit NID numbers)
+     * after financial/medical/password rules have been ruled out.
+     */
+    private static class IdentityFallbackRule implements DocumentRule {
+        private static final Pattern FALLBACK_ID_PATTERN = Pattern.compile(
+                "(?i)\\b(govt|republic\\s*of|date\\s*of\\s*birth|d\\.?o\\.?b\\.?|roll\\s*no|reg(?:istration)?\\s*no)\\b"
+        );
+        private static final Pattern LABELED_ID_FIELD_PATTERN = Pattern.compile(
+                "(?i)\\b(?:id|id\\s*no|id\\s*number|card\\s*no)\\s*[:#-]+\\s*[A-Z0-9-]{5,}"
+        );
+        private static final Pattern CARD_FIELD_COMBINATION_PATTERN = Pattern.compile(
+                "(?i)\\b(validity|valid\\s*thru|valid\\s*until|librarian)\\b"
+        );
+        private static final Pattern NID_NUMBER_PATTERN = Pattern.compile(
+                "\\b(\\d{10}|\\d{13}|\\d{17})\\b"
+        );
+
+        @Override
+        public boolean matches(@NonNull String text) {
+            return FALLBACK_ID_PATTERN.matcher(text).find()
+                    || LABELED_ID_FIELD_PATTERN.matcher(text).find()
+                    || CARD_FIELD_COMBINATION_PATTERN.matcher(text).find()
+                    || NID_NUMBER_PATTERN.matcher(text).find();
+        }
+
+        @NonNull
+        @Override
+        public String getDocType() {
+            return DocumentModel.TYPE_NID;
+        }
+
+        @NonNull
+        @Override
+        public List<String> extractTags(@NonNull String text) {
+            return extractIdentityTags(text);
+        }
+    }
+
+    /**
+     * Shared helper to extract identity tags (card type and ID number) for both explicit
+     * and fallback identity rules.
+     */
+    @NonNull
+    private static List<String> extractIdentityTags(@NonNull String text) {
+        List<String> tags = new ArrayList<>();
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.contains("library card")) {
+            tags.add("LIBRARY_CARD");
+        } else if (lower.contains("student")) {
+            tags.add("STUDENT_ID");
+        } else if (lower.contains("passport")) {
+            tags.add("PASSPORT");
+        } else if (lower.contains("licen")) {
+            tags.add("LICENSE");
+        } else {
+            tags.add("ID");
+        }
+
+        Matcher labeledMatcher = Pattern.compile(
+                "(?i)\\b(?:id|id\\s*no|card\\s*no|student\\s*id|nid|passport\\s*no|roll\\s*no|reg\\s*no)\\s*[:#-]?\\s*([A-Z0-9][A-Z0-9-]{4,18})\\b"
+        ).matcher(text);
+        if (labeledMatcher.find()) {
+            tags.add("ID:" + labeledMatcher.group(1).toUpperCase(Locale.ROOT));
             return tags;
         }
+
+        Matcher nidMatcher = Pattern.compile("\\b(\\d{10}|\\d{13}|\\d{17})\\b").matcher(text);
+        if (nidMatcher.find()) {
+            tags.add("ID:" + nidMatcher.group(1));
+        }
+        return tags;
     }
 
     /**
@@ -232,7 +308,10 @@ public class RegexClassifierEngine {
      */
     private static class PasswordRule implements DocumentRule {
         private static final Pattern PASSWORD_PATTERN = Pattern.compile(
-                "(?i)\\b(password|passwd|pwd|passcode|secret\\s*key|api\\s*key|access\\s*token|recovery\\s*phrase|seed\\s*phrase)\\b"
+                "(?i)\\b(password|passwd|pwd|passcode|pin\\s*code|wifi\\s*password|wi-fi\\s*key|" +
+                "passphrase|secret\\s*key|private\\s*key|ssh\\s*key|api\\s*key|access\\s*token|" +
+                "recovery\\s*phrase|recovery\\s*code|backup\\s*codes|seed\\s*phrase|" +
+                "2fa|two-factor|login\\s*credentials|account\\s*credentials)\\b"
         );
         private static final Pattern PASSWORD_VALUE_PATTERN = Pattern.compile(
                 "(?i)(?:password|pwd|passcode|pin)[\\s:=]+([\\S]{4,20})\\b"
@@ -264,11 +343,16 @@ public class RegexClassifierEngine {
     }
 
     /**
-     * Prescription Rule: Matches medical prescriptions, dosages, doctors, clinics.
+     * Prescription Rule: Matches medical prescriptions, dosages, doctors, clinics, lab reports.
+     * Note: Avoid matching bare "blood" since ID cards often display "Blood Group: B+".
      */
     private static class PrescriptionRule implements DocumentRule {
         private static final Pattern RX_PATTERN = Pattern.compile(
-                "(?i)\\b(rx|dr\\.|doctor|prescription|hospital|clinic|patient|tablet|capsule|syrup|mg|dosage|diagnos)\\b"
+                "(?i)\\b(rx|dr\\.|doctor|prescription|hospital|clinic|patient|medical|pharmacy|" +
+                "medicine|pathology|lab\\s*report|diagnostic|blood\\s*test|blood\\s*report|" +
+                "x-?ray|mri|ct\\s*scan|ultrasound|ecg|vaccine|vaccination|physician|mbbs|fcps|" +
+                "tablet|capsule|syrup|mg|dosage|diagnos|twice\\s*daily|after\\s*meal|before\\s*meal)\\b|" +
+                "(?i)\\b(?:tab|cap|syp|inj)\\."
         );
 
         @Override
@@ -361,11 +445,12 @@ public class RegexClassifierEngine {
                 return "Financial Receipt";
             }
             case DocumentModel.TYPE_NID: {
+                String label = resolveIdentityLabel(ocrText, collectedTags);
                 String idTag = findTagWithPrefix(collectedTags, "ID:");
                 if (idTag != null) {
-                    return "National ID (" + idTag.replace("ID:", "#") + ")";
+                    return label + " (" + idTag.replace("ID:", "#") + ")";
                 }
-                return "National Identity Card";
+                return label;
             }
             case DocumentModel.TYPE_PRESCRIPTION: {
                 String doctorOrClinic = extractDoctorOrClinic(ocrText);
@@ -474,6 +559,34 @@ public class RegexClassifierEngine {
             return hospMatcher.group(1).trim();
         }
         return null;
+    }
+
+    @NonNull
+    private static String resolveIdentityLabel(@NonNull String ocrText,
+                                               @NonNull List<String> collectedTags) {
+        String lower = ocrText.toLowerCase(Locale.ROOT);
+        if (collectedTags.contains("LIBRARY_CARD") || lower.contains("library card") || lower.contains("librarian")) {
+            return "Library Card";
+        }
+        if (lower.contains("admit card") || lower.contains("hall ticket")) {
+            return "Admit Card";
+        }
+        if (collectedTags.contains("PASSPORT") || lower.contains("passport")) {
+            return "Passport";
+        }
+        if (collectedTags.contains("LICENSE") || lower.contains("driving licen") || lower.contains("driver's licen")) {
+            return "Driving License";
+        }
+        if (collectedTags.contains("STUDENT_ID") || lower.contains("student id") || lower.contains("student card")) {
+            return "Student ID";
+        }
+        if (lower.contains("employee id") || lower.contains("staff id") || lower.contains("office id")) {
+            return "Employee ID";
+        }
+        if (lower.contains("national id") || lower.contains("nid") || lower.contains("birth cert")) {
+            return "National ID";
+        }
+        return "Identity Card";
     }
 
     private static String extractFirstMeaningfulLine(String text) {
