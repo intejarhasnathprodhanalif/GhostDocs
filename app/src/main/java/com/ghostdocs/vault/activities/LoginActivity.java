@@ -410,7 +410,13 @@ public class LoginActivity extends AppCompatActivity {
         } catch (ApiException e) {
             showLoading(false);
             Log.w(TAG, "Google Sign-In ApiException: " + e.getStatusCode(), e);
-            showError("Google Sign-In failed. Please try again.");
+            if (e.getStatusCode() == 10 || e.getStatusCode() == 12500) {
+                showError("Google Sign-In failed (Code " + e.getStatusCode() + ": SHA-1 mismatch in Firebase). Use Email/Password or add SHA-1 to Firebase Console.");
+            } else if (e.getStatusCode() == 7) {
+                showError("Network error during Google Sign-In. Check your internet connection.");
+            } else {
+                showError("Google Sign-In failed (code " + e.getStatusCode() + "). Please try again or use Email/Password.");
+            }
         }
     }
 
