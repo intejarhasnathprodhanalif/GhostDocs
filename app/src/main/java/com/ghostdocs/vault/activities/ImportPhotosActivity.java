@@ -43,11 +43,11 @@ import com.ghostdocs.vault.classifier.RegexClassifierEngine;
 import com.ghostdocs.vault.model.DocumentModel;
 import com.ghostdocs.vault.model.GalleryPhotoItem;
 import com.ghostdocs.vault.security.AesEncryptionHelper;
+import com.ghostdocs.vault.tasks.CropTask;
 import com.ghostdocs.vault.tasks.EncryptTask;
 import com.ghostdocs.vault.tasks.OcrTask;
 import com.ghostdocs.vault.tasks.PdfGeneratorTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
-import com.ghostdocs.vault.util.ImageDecodeHelper;
 import com.ghostdocs.vault.util.MediaDeleteHelper;
 import com.ghostdocs.vault.util.NetworkHelper;
 import com.ghostdocs.vault.util.NotificationHelper;
@@ -80,7 +80,7 @@ import java.util.concurrent.TimeoutException;
  * <ul>
  *   <li><b>Deep MediaStore Audit:</b> Automatically queries device screenshots.</li>
  *   <li><b>System Photo Picker:</b> Browse full device gallery / albums to import any image.</li>
- *   <li><b>Batch Vaulting Pipeline:</b> Full-frame image decoding, ML Kit OCR, AES-256 KeyStore encryption,
+ *   <li><b>Batch Vaulting Pipeline:</b> Full OpenCV crop, ML Kit OCR, AES-256 KeyStore encryption,
  *       searchable PDF creation, and Firestore sync on worker threads.</li>
  *   <li><b>Scoped Storage Compliant Erasure:</b> Android 10-14+ compliant original cleanup via
  *       {@link MediaStore#createDeleteRequest}.</li>
@@ -888,6 +888,7 @@ public class ImportPhotosActivity extends AppCompatActivity
                 List<String> tags;
                 String fullOcrText;
                 String encryptedPath = null;
+                String originalEncryptedPath = null;
                 String pdfPath = "";
                 String docId = UUID.randomUUID().toString();
 
@@ -920,7 +921,10 @@ public class ImportPhotosActivity extends AppCompatActivity
 
                     } else {
                         // ── IMAGE PIPELINE ──
-                        Bitmap processedBitmap = ImageDecodeHelper.loadBitmapFromUri(this, item.getUri());
+                        CropTask cropTask = new CropTask(this, item.getUri(), item.getDisplayName(), null);
+                        CropTask.CropResult cropResult = cropTask.executeWithOriginal();
+                        Bitmap processedBitmap = cropResult.getProcessedBitmap();
+                        Bitmap originalBitmap = cropResult.getOriginalBitmap();
 
                         OcrTask ocrTask = new OcrTask(this, processedBitmap, item.getDisplayName(), null);
                         OcrTask.OcrResult ocrResult = ocrTask.executeDirectly();
@@ -939,13 +943,21 @@ public class ImportPhotosActivity extends AppCompatActivity
                             if (processedBitmap != null && !processedBitmap.isRecycled()) {
                                 processedBitmap.recycle();
                             }
+                            if (originalBitmap != null && !originalBitmap.isRecycled()) {
+                                originalBitmap.recycle();
+                            }
                             break;
                         }
 
-                        // Hardware AES-256-GCM Encryption
-                        EncryptTask encryptTask = new EncryptTask(this, processedBitmap, item.getUri(), docId, false, null);
+                        // Hardware AES-256-GCM Encryption (both cropped + uncropped original if cropped)
+                        EncryptTask encryptTask = new EncryptTask(this, processedBitmap, originalBitmap, item.getUri(), docId, false, null);
                         EncryptTask.EncryptResult encryptResult = encryptTask.executeDirectly();
                         encryptedPath = encryptResult.getEncryptedPath();
+                        originalEncryptedPath = encryptResult.getOriginalEncryptedPath();
+
+                        if (originalBitmap != null && !originalBitmap.isRecycled()) {
+                            originalBitmap.recycle();
+                        }
 
                         // Searchable PDF Generation
                         try {
@@ -994,6 +1006,7 @@ public class ImportPhotosActivity extends AppCompatActivity
                             docType,
                             currentUser.getUid()
                     );
+                    docModel.setOriginalEncryptedPath(originalEncryptedPath);
 
                     Tasks.await(FirebaseFirestore.getInstance()
                             .collection("users")

@@ -24,11 +24,11 @@ import com.ghostdocs.vault.classifier.RegexClassifierEngine;
 import com.ghostdocs.vault.model.DocumentModel;
 import com.ghostdocs.vault.observer.MediaContentObserver;
 import com.ghostdocs.vault.security.AesEncryptionHelper;
+import com.ghostdocs.vault.tasks.CropTask;
 import com.ghostdocs.vault.tasks.EncryptTask;
 import com.ghostdocs.vault.tasks.OcrTask;
 import com.ghostdocs.vault.tasks.PdfGeneratorTask;
 import com.ghostdocs.vault.tasks.VaultExecutor;
-import com.ghostdocs.vault.util.ImageDecodeHelper;
 import com.ghostdocs.vault.util.MediaDeleteHelper;
 import com.ghostdocs.vault.util.NotificationHelper;
 import com.ghostdocs.vault.util.PdfExportHelper;
@@ -271,11 +271,12 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             Bitmap processedBitmap = null;
 
             if (isPdf) {
-                // Multi-page PDF OCR
+                // Multi-page PDF OCR without bitmap cropping
                 ocrTask = new OcrTask(this, imageUri, displayName, true, null);
             } else {
-                // Step 1: Decode full captured photo without cropping
-                processedBitmap = ImageDecodeHelper.loadBitmapFromUri(this, imageUri);
+                // Step 1: Smart Crop & Flatten
+                CropTask cropTask = new CropTask(this, imageUri, displayName, null);
+                processedBitmap = cropTask.executeDirectly();
 
                 // Step 2: ML Kit OCR
                 ocrTask = new OcrTask(this, processedBitmap, displayName, null);
@@ -336,6 +337,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
 
             boolean isPdf = PdfExportHelper.isPdf(mimeType, displayName);
             Bitmap processedBitmap = null;
+            Bitmap originalBitmap = null;
             OcrTask.OcrResult ocrResult;
 
             if (isPdf) {
@@ -343,11 +345,14 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                 OcrTask ocrTask = new OcrTask(this, imageUri, displayName, true, null);
                 ocrResult = ocrTask.executeDirectly();
             } else {
-                // Step 1: Decode full captured photo without cropping
-                updateForegroundNotification("Analyzing captured document...");
-                processedBitmap = ImageDecodeHelper.loadBitmapFromUri(this, imageUri);
+                // Step 1: Smart Crop & Flatten via OpenCV (retaining uncropped original if cropped)
+                updateForegroundNotification("Optimizing document perspective...");
+                CropTask cropTask = new CropTask(this, imageUri, displayName, null);
+                CropTask.CropResult cropResult = cropTask.executeWithOriginal();
+                processedBitmap = cropResult.getProcessedBitmap();
+                originalBitmap = cropResult.getOriginalBitmap();
 
-                // Step 2: Execute on-device ML Kit OCR Task
+                // Step 2: Execute on-device ML Kit OCR Task on de-skewed bitmap
                 updateForegroundNotification("Reading document text...");
                 OcrTask ocrTask = new OcrTask(this, processedBitmap, displayName, null);
                 ocrResult = ocrTask.executeDirectly();
@@ -376,6 +381,9 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                 if (processedBitmap != null && !processedBitmap.isRecycled()) {
                     processedBitmap.recycle();
                 }
+                if (originalBitmap != null && !originalBitmap.isRecycled()) {
+                    originalBitmap.recycle();
+                }
                 return;
             }
 
@@ -385,6 +393,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             boolean autoDeleteOriginal = prefs.getBoolean("auto_delete_original", true);
 
             String encryptedPath;
+            String originalEncryptedPath = null;
             String pdfPath = "";
             boolean originalDeleted = !autoDeleteOriginal;
             IntentSender recoverableSender = null;
@@ -403,12 +412,17 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                 }
                 Log.i(TAG, "PDF Encryption complete: " + encryptedPath + " | Original deleted: " + originalDeleted);
             } else {
-                EncryptTask encryptTask = new EncryptTask(this, processedBitmap, imageUri, docId,
+                EncryptTask encryptTask = new EncryptTask(this, processedBitmap, originalBitmap, imageUri, docId,
                         autoDeleteOriginal, null);
                 EncryptTask.EncryptResult encryptResult = encryptTask.executeDirectly();
                 encryptedPath = encryptResult.getEncryptedPath();
+                originalEncryptedPath = encryptResult.getOriginalEncryptedPath();
                 originalDeleted = encryptResult.isOriginalDeleted();
                 recoverableSender = encryptResult.getRecoverableIntentSender();
+
+                if (originalBitmap != null && !originalBitmap.isRecycled()) {
+                    originalBitmap.recycle();
+                }
 
                 Log.i(TAG, "Encryption complete: " + encryptedPath
                         + " | Original deleted: " + originalDeleted);
@@ -455,6 +469,7 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
                         tags,
                         docType,
                         currentUser.getUid());
+                docModel.setOriginalEncryptedPath(originalEncryptedPath);
 
                 FirebaseFirestore.getInstance()
                         .collection("users")
