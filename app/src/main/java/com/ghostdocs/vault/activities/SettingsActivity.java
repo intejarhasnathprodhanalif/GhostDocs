@@ -59,7 +59,6 @@ public class SettingsActivity extends AppCompatActivity {
     private static final String PREF_AUTO_START         = "auto_start_watcher";
     private static final String PREF_AUTO_DELETE        = "auto_delete_original";
     private static final String PREF_CONFIRM_SECURE     = "confirm_before_secure";
-    private static final String PREF_EXCLUDE_NOTES      = "exclude_study_notes";
 
     // ── Settings item indices (matches the list order) ───────────────────────
     private static final int IDX_PROFILE        = 0;
@@ -67,14 +66,13 @@ public class SettingsActivity extends AppCompatActivity {
     private static final int IDX_AUTO_START     = 2;
     private static final int IDX_AUTO_DELETE    = 3;
     private static final int IDX_CONFIRM_SECURE = 4;
-    private static final int IDX_EXCLUDE_NOTES  = 5;
-    private static final int IDX_IMPORT_OLD     = 6;
-    private static final int IDX_PERMISSIONS    = 7;
-    private static final int IDX_RESTORE_ALL    = 8;
-    private static final int IDX_EXPORT_PDF     = 9;
-    private static final int IDX_CLEAR_VAULT    = 10;
-    private static final int IDX_ABOUT          = 11;
-    private static final int IDX_SIGN_OUT       = 12;
+    private static final int IDX_IMPORT_OLD     = 5;
+    private static final int IDX_PERMISSIONS    = 6;
+    private static final int IDX_RESTORE_ALL    = 7;
+    private static final int IDX_EXPORT_PDF     = 8;
+    private static final int IDX_CLEAR_VAULT    = 9;
+    private static final int IDX_ABOUT          = 10;
+    private static final int IDX_SIGN_OUT       = 11;
 
     // ── Views ────────────────────────────────────────────────────────────────
     private ListView        lvSettings;
@@ -143,7 +141,6 @@ public class SettingsActivity extends AppCompatActivity {
         boolean autoStart     = prefs.getBoolean(PREF_AUTO_START,     true);
         boolean autoDelete    = prefs.getBoolean(PREF_AUTO_DELETE,    true);
         boolean confirmSecure = prefs.getBoolean(PREF_CONFIRM_SECURE, true);
-        boolean excludeNotes  = prefs.getBoolean(PREF_EXCLUDE_NOTES,  true);
 
         settingsItems.add(new LogListAdapter.LogItem(                               // 0
                 "User Profile & Security",
@@ -161,24 +158,21 @@ public class SettingsActivity extends AppCompatActivity {
                 "Ask Before Securing (Prompt on Capture)",
                 confirmSecure ? "ON (Prompt First)" : "OFF (Auto-Vault)"));
         settingsItems.add(new LogListAdapter.LogItem(                               // 5
-                "Exclude Class Notes & Lecture Photos",
-                excludeNotes ? "ON (Saved in Gallery)" : "OFF"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 6
                 "Scan & Secure Old Photos",
                 "Import pre-existing screenshots"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 7
+        settingsItems.add(new LogListAdapter.LogItem(                               // 6
                 "Storage Permissions",
                 getPermissionsStatusLabel()));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 8
+        settingsItems.add(new LogListAdapter.LogItem(                               // 7
                 "Restore All to Gallery (Unvault for Uninstall)",
                 "Restores all photos to Gallery"));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 9
+        settingsItems.add(new LogListAdapter.LogItem(                               // 8
                 getString(R.string.settings_export_pdf)));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 10
+        settingsItems.add(new LogListAdapter.LogItem(                               // 9
                 getString(R.string.settings_clear_vault)));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 11
+        settingsItems.add(new LogListAdapter.LogItem(                               // 10
                 getString(R.string.settings_about)));
-        settingsItems.add(new LogListAdapter.LogItem(                               // 12
+        settingsItems.add(new LogListAdapter.LogItem(                               // 11
                 "Sign Out", "→"));
     }
 
@@ -213,7 +207,6 @@ public class SettingsActivity extends AppCompatActivity {
             case IDX_AUTO_START:     toggleAutoStart();            break;
             case IDX_AUTO_DELETE:    toggleAutoDelete();           break;
             case IDX_CONFIRM_SECURE: toggleConfirmSecure();        break;
-            case IDX_EXCLUDE_NOTES:  toggleExcludeNotes();         break;
             case IDX_IMPORT_OLD:     openImportOldPhotos();        break;
             case IDX_PERMISSIONS:    openPermissions();            break;
             case IDX_RESTORE_ALL:    confirmRestoreAllToGallery(); break;
@@ -312,18 +305,6 @@ public class SettingsActivity extends AppCompatActivity {
         settingsAdapter.notifyDataSetChanged();
         Toast.makeText(this,
                 newVal ? "GhostDocs will ask before securing captures." : "GhostDocs will secure captures automatically.",
-                Toast.LENGTH_SHORT).show();
-    }
-
-    /** Toggles the exclusion of academic class notes and lecture photos from vault interception. */
-    private void toggleExcludeNotes() {
-        boolean current = prefs.getBoolean(PREF_EXCLUDE_NOTES, true);
-        boolean newVal  = !current;
-        prefs.edit().putBoolean(PREF_EXCLUDE_NOTES, newVal).apply();
-        settingsItems.get(IDX_EXCLUDE_NOTES).setValue(newVal ? "ON (Saved in Gallery)" : "OFF");
-        settingsAdapter.notifyDataSetChanged();
-        Toast.makeText(this,
-                newVal ? "Class notes will remain safely in Gallery." : "Class notes will be secured in Vault.",
                 Toast.LENGTH_SHORT).show();
     }
 

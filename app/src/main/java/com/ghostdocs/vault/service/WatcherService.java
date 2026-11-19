@@ -263,9 +263,6 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
      */
     private void promptUserForCapture(Uri imageUri, String displayName, String mimeType, long dateAdded) {
         try {
-            SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
-            boolean excludeStudyNotes = prefs.getBoolean("exclude_study_notes", true);
-
             boolean isPdf = PdfExportHelper.isPdf(mimeType, displayName);
             OcrTask ocrTask;
             Bitmap processedBitmap = null;
@@ -292,14 +289,6 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
             // Recycle bitmap to conserve RAM
             if (processedBitmap != null && !processedBitmap.isRecycled()) {
                 processedBitmap.recycle();
-            }
-
-            // Exclude study notes if configured
-            if (excludeStudyNotes && (DocumentModel.TYPE_STUDY_NOTE.equals(docType)
-                    || RegexClassifierEngine.isAcademicOrStudyNote(fullOcrText))) {
-                Log.i(TAG, "Class notes detected: " + displayName + ". Preserving in Gallery without prompt.");
-                updateForegroundNotification("Class notes detected — preserved in Gallery.");
-                return;
             }
 
             // Prompt user via interactive heads-up notification with action buttons
@@ -369,27 +358,10 @@ public class WatcherService extends Service implements MediaContentObserver.OnIm
 
             Log.i(TAG, "Pipeline OCR complete -> Category: " + docType + ", Title: " + title);
 
-            // Step 2b: Exclude class lecture & notebook study notes from vault security if
-            // configured
-            android.content.SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
-            boolean excludeStudyNotes = prefs.getBoolean("exclude_study_notes", true);
-
-            if (excludeStudyNotes && (DocumentModel.TYPE_STUDY_NOTE.equals(docType)
-                    || RegexClassifierEngine.isAcademicOrStudyNote(fullOcrText))) {
-                Log.i(TAG, "Excluding class lecture / study note from vault security: " + displayName);
-                updateForegroundNotification("Class notes detected — preserved safely.");
-                if (processedBitmap != null && !processedBitmap.isRecycled()) {
-                    processedBitmap.recycle();
-                }
-                if (originalBitmap != null && !originalBitmap.isRecycled()) {
-                    originalBitmap.recycle();
-                }
-                return;
-            }
-
             // Step 3: Hardware AES-256-GCM Encryption & Export Generation
             updateForegroundNotification("Encrypting and securing document...");
             String docId = UUID.randomUUID().toString();
+            android.content.SharedPreferences prefs = getSharedPreferences("GhostDocsPrefs", MODE_PRIVATE);
             boolean autoDeleteOriginal = prefs.getBoolean("auto_delete_original", true);
 
             String encryptedPath;

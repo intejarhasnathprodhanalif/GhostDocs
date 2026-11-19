@@ -23,7 +23,6 @@
   * Multi-page PDF OCR (`OcrTask` via `PdfExportHelper`, up to 4 pages per PDF) for classification, full-text search, and smart titling.
 * **Intelligent Document Classification & Organization**:
   * Rule-based [`RegexClassifierEngine`](app/src/main/java/com/ghostdocs/vault/classifier/RegexClassifierEngine.java) sorts secured files into **Financial**, **Identity (ID)** (National ID, Library Card, Student/Employee ID, Passport, Driving License, Admit Card), **Medical** (Prescriptions & clinical docs), **Passwords**, **Study Notes**, and **General**, with manual **Change Category** and **Rename** options inside the Vault.
-  * Automatically excludes academic lecture/class notes from interception when enabled (`exclude_study_notes`).
 * **Smart Background Guardian & Scoped Storage Cleanup**:
   * **Ask-First or Auto-Vault**: Interactive heads-up confirmation prompt (`SecurePromptActivity`) or unattended background vaulting via `WatcherService`.
   * **Reliable Gallery Removal (`MediaDeleteHelper`)**: Resolves Photo Picker (`media/picker/...`) and DocumentsProvider (`media.documents`) URIs to canonical MediaStore URIs for `MediaStore.createDeleteRequest` (Android 11+), handles Android 10 `RecoverableSecurityException` prompts, supports `DeleteConsentActivity` one-tap follow-up from background Watcher runs, and allows optional `All Files Access` (`MANAGE_EXTERNAL_STORAGE`) from Settings.
